@@ -110,6 +110,33 @@ export async function openDrivePicker(): Promise<DriveFile | null> {
   })
 }
 
+export interface DriveFolderFile {
+  id: string
+  name: string
+  mimeType: string
+  webViewLink: string
+  createdTime: string
+}
+
+export async function listFolderFiles(folderId: string): Promise<DriveFolderFile[]> {
+  if (!accessToken) accessToken = await authorizeGoogleDrive()
+  const params = new URLSearchParams({
+    q: `'${folderId}' in parents and trashed = false and (mimeType contains 'image/' or mimeType = 'application/pdf')`,
+    fields: 'files(id,name,mimeType,webViewLink,createdTime)',
+    pageSize: '100',
+    orderBy: 'createdTime desc',
+  })
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: { message?: string } }
+    throw new Error(`Drive API: ${err?.error?.message ?? res.status}`)
+  }
+  const data = await res.json() as { files: DriveFolderFile[] }
+  return data.files ?? []
+}
+
 export async function downloadDriveFileAsBase64(fileId: string): Promise<{ base64: string; mimeType: string }> {
   if (!accessToken) throw new Error('Não autenticado no Google Drive')
 

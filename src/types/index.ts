@@ -85,3 +85,53 @@ export interface Profile {
   avatar_url?: string
   created_at: string
 }
+
+export interface DriveImportConfig {
+  id: string
+  company_id: string
+  folder_id: string
+  folder_url?: string
+  enabled: boolean
+  last_scanned_at?: string
+  created_at: string
+}
+
+export interface DriveProcessedFile {
+  id: string
+  drive_file_id: string
+  company_id: string
+  file_name?: string
+  file_url?: string
+  transaction_id?: string
+  status: 'done' | 'pending' | 'error'
+  ocr_data?: Record<string, unknown>
+  created_at: string
+}
+
+export interface PayeeAccountRule {
+  id: string
+  company_id: string
+  payee_name: string
+  account_id: string
+  transaction_type: TransactionType
+  created_at: string
+  updated_at: string
+}
+
+export interface PendingClassification {
+  id: string
+  company_id: string
+  drive_file_id: string
+  file_name?: string
+  file_url?: string
+  extracted_data: {
+    payee?: string
+    amount_cents?: number
+    date?: string
+    type?: TransactionType
+    raw_text?: string
+  }
+  status: 'pending' | 'done' | 'skipped'
+  transaction_id?: string
+  created_at: string
+}

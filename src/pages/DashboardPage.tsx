@@ -7,7 +7,7 @@ import {
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
   DollarSign, ShoppingBag, Percent, Activity, AlertTriangle,
-  Zap, Target, BarChart3, Radio, RefreshCw,
+  Zap, Target, BarChart3, Radio, RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
@@ -16,6 +16,7 @@ import { getAccounts } from '../lib/api/accounts'
 import { calcDRE, formatBRL, formatPercent } from '../lib/dre'
 import type { Transaction, AccountCategory } from '../types'
 import Decimal from 'decimal.js'
+import PeriodChips from '../components/ui/PeriodChips'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -220,6 +221,8 @@ export default function DashboardPage() {
   }, [curDRE])
   const totalCosts = costData.reduce((s,d)=>s+d.value,0)
 
+  const [bmOpen, setBmOpen] = useState(false)
+
   // Empresa ativa
   const activeCompany = companies.find(c => c.id === activeCompanyId)
   const noCompany = !companyIds.length
@@ -232,34 +235,27 @@ export default function DashboardPage() {
   const ml = curDRE?.margemLiquida ?? 0
 
   return (
-    <div className="min-h-full bg-slate-950 -m-6 p-6">
+    <div className="min-h-full bg-slate-950 -m-4 lg:-m-6 p-4 lg:p-6">
 
-      {/* ── Status bar ── */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {loading ? 'ATUALIZANDO' : 'OPERACIONAL'}
-            </span>
-          </div>
-          <span className="text-slate-700">|</span>
-          <span className="text-xs text-slate-500">
-            {activeCompanyId === 'consolidated' ? 'VISÃO CONSOLIDADA' : (activeCompany?.name.toUpperCase() ?? 'SEM EMPRESA')}
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between mb-3 lg:mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-2 lg:gap-3">
+          <div className={`w-2 h-2 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden lg:inline">
+            {loading ? 'ATUALIZANDO' : 'OPERACIONAL'}
+          </span>
+          <span className="text-xs text-slate-400 font-semibold lg:text-slate-500">
+            {activeCompanyId === 'consolidated' ? 'Consolidado' : (activeCompany?.name ?? 'Sem empresa')}
           </span>
           {lastUpdate && (
-            <>
-              <span className="text-slate-700">|</span>
-              <span className="text-xs text-slate-600">
-                Atualizado {lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-              </span>
-            </>
+            <span className="text-xs text-slate-600 hidden lg:inline">
+              · Atualizado {lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+            </span>
           )}
         </div>
-
         <div className="flex items-center gap-2">
-          {/* Período */}
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
+          {/* Desktop: botões inline */}
+          <div className="hidden lg:flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
             {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
               <button key={p} onClick={() => setPeriod(p)}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${period===p?'bg-blue-800 text-white':'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
@@ -268,7 +264,7 @@ export default function DashboardPage() {
             ))}
           </div>
           {period === 'custom' && (
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5">
+            <div className="hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5">
               <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
                 className="bg-transparent text-xs text-slate-300 outline-none" />
               <span className="text-slate-600 text-xs">→</span>
@@ -283,6 +279,20 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Period chips — mobile only */}
+      <div className="lg:hidden mb-4">
+        <PeriodChips value={period} onChange={setPeriod} />
+        {period === 'custom' && (
+          <div className="flex items-center gap-2 mt-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+            <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+              className="bg-transparent text-xs text-slate-300 outline-none flex-1" />
+            <span className="text-slate-600 text-xs">→</span>
+            <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+              className="bg-transparent text-xs text-slate-300 outline-none flex-1" />
+          </div>
+        )}
+      </div>
+
       {noCompany ? (
         <div className="flex flex-col items-center justify-center h-64 gap-3">
           <AlertTriangle className="w-8 h-8 text-amber-500" />
@@ -291,9 +301,42 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* ── PAINEL 1 — Big Instruments ── */}
+          {/* ── PAINEL 1 — KPIs ── */}
           <div className="mb-4"><SectionLabel>Indicadores Principais</SectionLabel></div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+
+          {/* Mobile: hero + grid 2×2 */}
+          <div className="lg:hidden mb-4 space-y-3">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Receita Bruta</span>
+                {curDRE&&prevDRE&&(
+                  <span className={`flex items-center gap-0.5 text-xs font-bold ${delta(r,prevDRE.receitaBruta)!>=0?'text-emerald-400':'text-red-400'}`}>
+                    {delta(r,prevDRE.receitaBruta)!>=0?<ArrowUpRight className="w-3 h-3"/>:<ArrowDownRight className="w-3 h-3"/>}
+                    {Math.abs(delta(r,prevDRE.receitaBruta)!).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <p className="font-mono font-bold text-3xl text-white">R$ {fmtK(r)}</p>
+              <p className="text-xs text-slate-600 mt-1">{curTxs.length} lançamentos no período</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Instrument label="Lucro Bruto" value={`R$ ${fmtK(lb)}`}
+                delta={curDRE&&prevDRE?delta(lb,prevDRE.lucroBruto):null}
+                color={lb>=0?'#10B981':'#EF4444'} icon={<TrendingUp className="w-4 h-4"/>} />
+              <Instrument label="Lucro Líquido" value={`R$ ${fmtK(ll)}`}
+                delta={curDRE&&prevDRE?delta(ll,prevDRE.lucroLiquido):null}
+                color={ll>=0?'#10B981':'#EF4444'} icon={<Zap className="w-4 h-4"/>} />
+              <Instrument label="Margem Bruta" value={formatPercent(mb)}
+                bm={BM.margemBruta} bmVal={mb}
+                color="#A78BFA" icon={<Percent className="w-4 h-4"/>} />
+              <Instrument label="Margem Líquida" value={formatPercent(ml)}
+                bm={BM.margemLiquida} bmVal={ml}
+                color="#F59E0B" icon={<Target className="w-4 h-4"/>} />
+            </div>
+          </div>
+
+          {/* Desktop: grid 6 colunas */}
+          <div className="hidden lg:grid grid-cols-6 gap-3 mb-6">
             <Instrument label="Receita Bruta" value={`R$ ${fmtK(r)}`}
               sub={`${curTxs.length} lançamentos`}
               delta={curDRE&&prevDRE?delta(r,prevDRE.receitaBruta):null}
@@ -318,31 +361,31 @@ export default function DashboardPage() {
 
           {/* ── PAINEL 2 — Tendência + Canais ── */}
           <div className="mb-4"><SectionLabel>Tendência 12 Meses</SectionLabel></div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 lg:mb-6">
 
             {/* Gráfico tendência */}
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Receita / Despesas / Lucro</span>
-                <div className="flex items-center gap-3">
-                  {[['Receita','#3B82F6'],['Despesas','#EF4444'],['Lucro','#10B981']].map(([n,c])=>(
-                    <span key={n} className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <span className="w-2.5 h-0.5 inline-block rounded" style={{background:c}}/>
+            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4 lg:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Rec / Desp / Lucro</span>
+                <div className="flex items-center gap-2">
+                  {[['Rec','#3B82F6'],['Desp','#EF4444'],['Lucro','#10B981']].map(([n,c])=>(
+                    <span key={n} className="flex items-center gap-1 text-[10px] text-slate-500">
+                      <span className="w-2 h-0.5 inline-block rounded" style={{background:c}}/>
                       {n}
                     </span>
                   ))}
                 </div>
               </div>
               {trendData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={trendData} margin={{top:5,right:10,left:0,bottom:5}}>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={trendData} margin={{top:5,right:5,left:0,bottom:5}}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                    <XAxis dataKey="mes" tick={{fontSize:10,fill:'#475569'}} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={v=>fmtK(v*100)} tick={{fontSize:10,fill:'#475569'}} width={52} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="mes" tick={{fontSize:9,fill:'#475569'}} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={v=>fmtK(v*100)} tick={{fontSize:9,fill:'#475569'}} width={42} axisLine={false} tickLine={false} />
                     <Tooltip
                       formatter={((v: number) => [`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`]) as never}
-                      contentStyle={{background:'#0F172A',border:'1px solid #1E293B',borderRadius:8,fontSize:12,color:'#CBD5E1'}}
-                      labelStyle={{color:'#64748B',fontSize:11,marginBottom:4}}
+                      contentStyle={{background:'#0F172A',border:'1px solid #1E293B',borderRadius:8,fontSize:11,color:'#CBD5E1'}}
+                      labelStyle={{color:'#64748B',fontSize:10,marginBottom:4}}
                     />
                     <Line type="monotone" dataKey="Receita"  stroke="#3B82F6" strokeWidth={2} dot={false} />
                     <Line type="monotone" dataKey="Despesas" stroke="#EF4444" strokeWidth={2} dot={false} />
@@ -350,48 +393,41 @@ export default function DashboardPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-48 flex flex-col items-center justify-center gap-2">
+                <div className="h-44 flex flex-col items-center justify-center gap-2">
                   <BarChart3 className="w-8 h-8 text-slate-700" />
                   <p className="text-slate-600 text-sm">Sem dados de tendência</p>
-                  <p className="text-slate-700 text-xs">Adicione transações para visualizar</p>
                 </div>
               )}
             </div>
 
-            {/* Donut canais */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-4">Receita por Canal</span>
+            {/* Canais — lista rankeada com barra de progresso */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 lg:p-5">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-3">Receita por Canal</span>
               {chData.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <PieChart>
-                      <Pie data={chData} cx="50%" cy="50%" innerRadius={42} outerRadius={65} paddingAngle={3} dataKey="value">
-                        {chData.map((d,i) => <Cell key={i} fill={d.fill} />)}
-                      </Pie>
-                      <Tooltip
-                        formatter={((v: number) => [`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`]) as never}
-                        contentStyle={{background:'#0F172A',border:'1px solid #1E293B',borderRadius:8,fontSize:12,color:'#CBD5E1'}}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-2 mt-2">
-                    {chData.map(d => {
-                      const total = chData.reduce((s,x)=>s+x.value,0)
-                      const pct = total>0?((d.value/total)*100).toFixed(1):'0.0'
-                      return (
-                        <div key={d.name} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:d.fill}}/>
-                          <span className="text-xs text-slate-400 flex-1">{d.name}</span>
-                          <span className="font-mono text-xs font-semibold text-slate-300">{pct}%</span>
+                <div className="space-y-3">
+                  {chData.map(d => {
+                    const total = chData.reduce((s,x)=>s+x.value,0)
+                    const pct = total>0?(d.value/total)*100:0
+                    return (
+                      <div key={d.name}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:d.fill}}/>
+                            {d.name}
+                          </span>
+                          <span className="font-mono text-xs text-slate-400">{pct.toFixed(1)}%</span>
                         </div>
-                      )
-                    })}
-                  </div>
-                </>
+                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{width:`${pct}%`,background:d.fill}}/>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               ) : (
-                <div className="h-52 flex flex-col items-center justify-center gap-2">
+                <div className="h-40 flex flex-col items-center justify-center gap-2">
                   <Radio className="w-7 h-7 text-slate-700" />
-                  <p className="text-slate-600 text-xs text-center">Sem canal definido<br/>nas transações</p>
+                  <p className="text-slate-600 text-xs text-center">Sem canal definido</p>
                 </div>
               )}
             </div>
@@ -510,30 +546,38 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ── PAINEL 4 — DRE Waterfall ── */}
-          <div className="mb-4"><SectionLabel>DRE — Cascata de Resultados</SectionLabel></div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          {/* ── PAINEL 4 — DRE Cascata ── */}
+          <button
+            onClick={() => setBmOpen(v => !v)}
+            className="lg:hidden w-full flex items-center justify-between mb-2 text-left"
+          >
+            <SectionLabel>DRE — Cascata de Resultados</SectionLabel>
+            {bmOpen ? <ChevronUp className="w-4 h-4 text-slate-500 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />}
+          </button>
+          <div className="hidden lg:block mb-4"><SectionLabel>DRE — Cascata de Resultados</SectionLabel></div>
+
+          <div className={`bg-slate-900 border border-slate-800 rounded-xl overflow-hidden mb-4 ${!bmOpen ? 'hidden lg:block' : ''}`}>
             {curDRE ? (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
                 {[
-                  { label:'Receita Bruta',        v:curDRE.receitaBruta,       color:'#3B82F6', op:'' },
-                  { label:'(-) Deduções',          v:curDRE.deducoes,           color:'#EF4444', op:'−' },
-                  { label:'(=) Rec. Líquida',      v:curDRE.receitaLiquida,     color:'#60A5FA', op:'=' },
-                  { label:'(-) CMV',               v:curDRE.cmv,                color:'#EF4444', op:'−' },
-                  { label:'(=) Lucro Bruto',       v:curDRE.lucroBruto,         color:curDRE.lucroBruto>=0?'#10B981':'#EF4444', op:'=' },
-                  { label:'(-) Desp. Op.',         v:curDRE.despesasOperacionais,color:'#F59E0B', op:'−' },
-                  { label:'(=) Lucro Op.',         v:curDRE.lucroOperacional,   color:curDRE.lucroOperacional>=0?'#10B981':'#EF4444', op:'=' },
-                  { label:'(=) Lucro Líquido',     v:curDRE.lucroLiquido,       color:curDRE.lucroLiquido>=0?'#10B981':'#EF4444', op:'=' },
+                  { label:'Receita Bruta',   v:curDRE.receitaBruta,            color:'#3B82F6', op:'' },
+                  { label:'(-) Deduções',    v:curDRE.deducoes,                color:'#EF4444', op:'−' },
+                  { label:'Rec. Líquida',    v:curDRE.receitaLiquida,          color:'#60A5FA', op:'=' },
+                  { label:'(-) CMV',         v:curDRE.cmv,                     color:'#EF4444', op:'−' },
+                  { label:'Lucro Bruto',     v:curDRE.lucroBruto,              color:curDRE.lucroBruto>=0?'#10B981':'#EF4444', op:'=' },
+                  { label:'(-) Desp. Op.',   v:curDRE.despesasOperacionais,    color:'#F59E0B', op:'−' },
+                  { label:'Lucro Op.',       v:curDRE.lucroOperacional,        color:curDRE.lucroOperacional>=0?'#10B981':'#EF4444', op:'=' },
+                  { label:'Lucro Líquido',   v:curDRE.lucroLiquido,            color:curDRE.lucroLiquido>=0?'#10B981':'#EF4444', op:'=' },
                 ].map(({label,v,color,op},i) => (
-                  <div key={label} className={`p-4 border-r border-slate-800 last:border-0 ${i===7?'bg-slate-800/50':''}`}>
-                    <div className="h-0.5 rounded-full mb-3" style={{background:color,opacity:0.5}}/>
-                    <p className="text-xs text-slate-600 mb-1 leading-tight">{label}</p>
-                    <p className="font-mono text-sm font-bold leading-none" style={{color}}>
-                      {op&&<span className="text-slate-600 mr-0.5 text-xs">{op}</span>}
+                  <div key={label} className={`p-3 lg:p-4 border-r border-b border-slate-800 last:border-r-0 ${i===7?'bg-slate-800/50':''}`}>
+                    <div className="h-0.5 rounded-full mb-2" style={{background:color,opacity:0.5}}/>
+                    <p className="text-[10px] lg:text-xs text-slate-600 mb-1 leading-tight">{label}</p>
+                    <p className="font-mono text-xs lg:text-sm font-bold leading-none" style={{color}}>
+                      {op&&<span className="text-slate-600 mr-0.5 text-[10px]">{op}</span>}
                       R$ {fmtK(Math.abs(v))}
                     </p>
                     {r>0&&(
-                      <p className="text-xs text-slate-700 mt-1">{formatPercent(Math.abs((v/r)*100))}</p>
+                      <p className="text-[10px] text-slate-700 mt-1">{formatPercent(Math.abs((v/r)*100))}</p>
                     )}
                   </div>
                 ))}

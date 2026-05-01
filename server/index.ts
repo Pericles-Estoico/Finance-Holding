@@ -367,6 +367,237 @@ app.post('/api/whatsapp', (req, res) => {
   })()
 })
 
+// ── Drive Import ──────────────────────────────────────────────────────────────
+
+interface OcrExtracted {
+  payee?: string
+  amount_cents?: number
+  date?: string
+  type?: 'receita' | 'despesa'
+  raw_text?: string
+}
+
+async function extractReceiptWithClaude(base64: string, mimeType: string): Promise<OcrExtracted> {
+  const isPdf = mimeType === 'application/pdf'
+  const content: Anthropic.MessageParam['content'] = isPdf
+    ? [
+        { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64 } },
+        { type: 'text' as const, text: 'Extraia do comprovante: nome do fornecedor/favorecido (payee), valor total em centavos inteiros (amount_cents), data no formato YYYY-MM-DD (date), tipo: "receita" se é entrada de dinheiro ou "despesa" se é saída. Responda APENAS JSON sem markdown: {"payee":"","amount_cents":0,"date":"YYYY-MM-DD","type":"despesa"}' },
+      ]
+    : [
+        { type: 'image' as const, source: { type: 'base64' as const, media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/webp', data: base64 } },
+        { type: 'text' as const, text: 'Extraia do comprovante: nome do fornecedor/favorecido (payee), valor total em centavos inteiros (amount_cents), data no formato YYYY-MM-DD (date), tipo: "receita" se é entrada de dinheiro ou "despesa" se é saída. Responda APENAS JSON sem markdown: {"payee":"","amount_cents":0,"date":"YYYY-MM-DD","type":"despesa"}' },
+      ]
+
+  const resp = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 256,
+    messages: [{ role: 'user', content }],
+  })
+  const text = resp.content.find(b => b.type === 'text')?.type === 'text'
+    ? (resp.content.find(b => b.type === 'text') as { type: 'text'; text: string }).text
+    : '{}'
+  const cleaned = text.replace(/```json|```/g, '').trim()
+  try {
+    return JSON.parse(cleaned) as OcrExtracted
+  } catch {
+    return { raw_text: text }
+  }
+}
+
+// Check which Drive file IDs are already processed for this company
+app.post('/api/drive-import/check-processed', async (req, res) => {
+  try {
+    const { company_id, file_ids } = req.body as { company_id: string; file_ids: string[] }
+    if (!company_id || !Array.isArray(file_ids)) return res.status(400).json({ error: 'company_id e file_ids obrigatorios' })
+    const { data } = await supabase
+      .from('drive_processed_files')
+      .select('drive_file_id')
+      .eq('company_id', company_id)
+      .in('drive_file_id', file_ids)
+    const processed_ids = (data ?? []).map((r: { drive_file_id: string }) => r.drive_file_id)
+    return res.json({ processed_ids })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
+// OCR + classify + create transaction or add to pending queue
+app.post('/api/drive-import/process-file', async (req, res) => {
+  try {
+    const { company_id, file_id, file_name, file_url, base64, mime_type } = req.body as {
+      company_id: string; file_id: string; file_name: string
+      file_url: string; base64: string; mime_type: string
+    }
+    if (!company_id || !file_id || !base64) return res.status(400).json({ error: 'Campos obrigatórios ausentes' })
+
+    // Check already processed
+    const { data: existing } = await supabase
+      .from('drive_processed_files')
+      .select('id, status, transaction_id')
+      .eq('drive_file_id', file_id)
+      .eq('company_id', company_id)
+      .maybeSingle()
+    if (existing) return res.json({ status: 'already_processed', transaction_id: existing.transaction_id })
+
+    // OCR via Claude Vision
+    const extracted = await extractReceiptWithClaude(base64, mime_type)
+
+    const payeeKey = (extracted.payee ?? '').toLowerCase().trim()
+
+    // Look up payee rule
+    const { data: rule } = await supabase
+      .from('payee_account_rules')
+      .select('account_id, transaction_type')
+      .eq('company_id', company_id)
+      .eq('payee_name', payeeKey)
+      .maybeSingle()
+
+    if (rule && extracted.amount_cents && extracted.date) {
+      // Auto-create transaction
+      const { data: tx, error: txErr } = await supabase.from('transactions').insert({
+        company_id,
+        account_id: rule.account_id,
+        type: rule.transaction_type,
+        amount_cents: extracted.amount_cents,
+        description: extracted.payee ?? file_name,
+        date: extracted.date,
+        drive_file_url: file_url,
+        drive_file_id: file_id,
+        is_simulation: false,
+      }).select('id').single()
+      if (txErr) throw new Error(txErr.message)
+
+      await supabase.from('drive_processed_files').insert({
+        drive_file_id: file_id, company_id, file_name, file_url,
+        transaction_id: tx.id, status: 'done', ocr_data: extracted,
+      })
+
+      return res.json({ status: 'auto_created', transaction_id: tx.id, extracted })
+    }
+
+    // No rule — add to pending queue
+    const { data: pending, error: pErr } = await supabase.from('pending_classifications').insert({
+      company_id, drive_file_id: file_id, file_name, file_url, extracted_data: extracted,
+    }).select('id').single()
+    if (pErr) throw new Error(pErr.message)
+
+    await supabase.from('drive_processed_files').insert({
+      drive_file_id: file_id, company_id, file_name, file_url,
+      status: 'pending', ocr_data: extracted,
+    })
+
+    return res.json({ status: 'pending', pending_id: pending.id, extracted })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
+// List pending classifications
+app.get('/api/drive-import/pending', async (req, res) => {
+  try {
+    const company_id = req.query.company_id as string
+    if (!company_id) return res.status(400).json({ error: 'company_id obrigatório' })
+    const { data, error } = await supabase
+      .from('pending_classifications')
+      .select('*')
+      .eq('company_id', company_id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return res.json({ pending: data ?? [] })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
+// Assign account → create transaction + save payee rule
+app.post('/api/drive-import/classify', async (req, res) => {
+  try {
+    const { pending_id, company_id, account_id, type, save_rule } = req.body as {
+      pending_id: string; company_id: string; account_id: string
+      type: 'receita' | 'despesa'; save_rule: boolean
+    }
+    if (!pending_id || !company_id || !account_id || !type) return res.status(400).json({ error: 'Campos obrigatórios ausentes' })
+
+    const { data: pending, error: pErr } = await supabase
+      .from('pending_classifications')
+      .select('*')
+      .eq('id', pending_id)
+      .eq('company_id', company_id)
+      .single()
+    if (pErr || !pending) return res.status(404).json({ error: 'Pendente não encontrado' })
+
+    const extracted = pending.extracted_data as OcrExtracted
+
+    const { data: tx, error: txErr } = await supabase.from('transactions').insert({
+      company_id,
+      account_id,
+      type,
+      amount_cents: extracted.amount_cents ?? 0,
+      description: extracted.payee ?? pending.file_name ?? 'Comprovante Drive',
+      date: extracted.date ?? new Date().toISOString().slice(0, 10),
+      drive_file_url: pending.file_url,
+      drive_file_id: pending.drive_file_id,
+      is_simulation: false,
+    }).select('id').single()
+    if (txErr) throw new Error(txErr.message)
+
+    // Mark pending as done
+    await supabase.from('pending_classifications').update({
+      status: 'done', transaction_id: tx.id,
+    }).eq('id', pending_id)
+
+    // Update processed file record
+    await supabase.from('drive_processed_files').update({
+      status: 'done', transaction_id: tx.id,
+    }).eq('drive_file_id', pending.drive_file_id).eq('company_id', company_id)
+
+    // Save payee rule if requested
+    if (save_rule && extracted.payee) {
+      const payeeKey = extracted.payee.toLowerCase().trim()
+      await supabase.from('payee_account_rules').upsert({
+        company_id, payee_name: payeeKey, account_id, transaction_type: type, updated_at: new Date().toISOString(),
+      }, { onConflict: 'company_id,payee_name' })
+    }
+
+    return res.json({ transaction_id: tx.id })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
+// Get/Save Drive folder config
+app.get('/api/drive-import/config', async (req, res) => {
+  try {
+    const company_id = req.query.company_id as string
+    if (!company_id) return res.status(400).json({ error: 'company_id obrigatório' })
+    const { data } = await supabase
+      .from('drive_import_configs')
+      .select('folder_id, folder_url')
+      .eq('company_id', company_id)
+      .maybeSingle()
+    return res.json(data ?? {})
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
+app.post('/api/drive-import/config', async (req, res) => {
+  try {
+    const { company_id, folder_id, folder_url } = req.body as { company_id: string; folder_id: string; folder_url: string }
+    if (!company_id || !folder_id) return res.status(400).json({ error: 'company_id e folder_id obrigatórios' })
+    const { error } = await supabase.from('drive_import_configs').upsert(
+      { company_id, folder_id, folder_url, enabled: true },
+      { onConflict: 'company_id' }
+    )
+    if (error) throw new Error(error.message)
+    return res.json({ ok: true })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
 // ── Inicialização ─────────────────────────────────────────────────────────────
 
 const PORT = Number(process.env.PORT ?? 3001)
