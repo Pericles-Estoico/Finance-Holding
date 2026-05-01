@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import {
   LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                     <XAxis dataKey="mes" tick={{fontSize:10,fill:'#475569'}} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={v=>fmtK(v*100)} tick={{fontSize:10,fill:'#475569'}} width={52} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={(v:number,n:string)=>[`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`,n]}
+                      formatter={((v: number) => [`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`]) as never}
                       contentStyle={{background:'#0F172A',border:'1px solid #1E293B',borderRadius:8,fontSize:12,color:'#CBD5E1'}}
                       labelStyle={{color:'#64748B',fontSize:11,marginBottom:4}}
                     />
@@ -362,7 +362,7 @@ export default function DashboardPage() {
                         {chData.map((d,i) => <Cell key={i} fill={d.fill} />)}
                       </Pie>
                       <Tooltip
-                        formatter={(v:number)=>[`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`,'']}
+                        formatter={((v: number) => [`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`]) as never}
                         contentStyle={{background:'#0F172A',border:'1px solid #1E293B',borderRadius:8,fontSize:12,color:'#CBD5E1'}}
                       />
                     </PieChart>

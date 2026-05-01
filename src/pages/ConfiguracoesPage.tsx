@@ -46,7 +46,7 @@ export default function ConfiguracoesPage() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
   const [loading, setLoading]             = useState(false)
   const [error, setError]                 = useState<string | null>(null)
-  const [saved, setSaved]                 = useState(false)
+  const [saved]                            = useState(false)
 
   const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '', tax_regime: 'simples_nacional' as TaxRegime })
   const [accountForm, setAccountForm] = useState({ code: '', name: '', type: 'despesa_operacional' as AccountCategory['type'] })

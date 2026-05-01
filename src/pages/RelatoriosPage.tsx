@@ -10,7 +10,7 @@ import { getAccounts } from '../lib/api/accounts'
 import { calcDRE } from '../lib/dre'
 import { gerarDREPDF, gerarTransacoesPDF, gerarResumoExecutivoPDF } from '../lib/export/pdf'
 import { exportTransacoesCSV, exportDRECSV } from '../lib/export/csv'
-import type { Transaction, AccountCategory, Company } from '../types'
+import type { Transaction, AccountCategory } from '../types'
 
 // ─── Período ─────────────────────────────────────────────────────────────────
 
