@@ -51,7 +51,7 @@ function parseOcrText(text: string): OcrParsed {
   return { date, totalCents, supplierName, supplierCnpj, suggestedAccountCode }
 }
 
-const MOCK_TEXT = 'Amazon Serviços de Varejo do Brasil Ltda\nCNPJ: 15.436.940/0001-03\nData: 15/04/2025\nTotal: R$ 1.250,00'
+const MOCK_TEXT = 'EXEMPLO — configure GOOGLE_VISION_API_KEY para OCR real\nFornecedor: Preencha manualmente\nData: ' + new Date().toLocaleDateString('pt-BR') + '\nTotal: R$ 0,00'
 
 function sendJson(res: ServerResponse, status: number, data: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json' })
