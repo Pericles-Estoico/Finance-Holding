@@ -7,8 +7,9 @@ interface AuthContextValue {
   session: Session | null
   user: User | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
-  signInWithGitHub: () => Promise<void>
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
+  sendMagicLink: (email: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -31,18 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    })
+  const signUpWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password })
+    return { error: error?.message ?? null }
   }
 
-  const signInWithGitHub = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: window.location.origin },
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error: error?.message ?? null }
+  }
+
+  const sendMagicLink = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin },
     })
+    return { error: error?.message ?? null }
   }
 
   const signOut = async () => {
@@ -51,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signInWithGoogle, signInWithGitHub, signOut }}
+      value={{ session, user: session?.user ?? null, loading, signUpWithEmail, signInWithEmail, sendMagicLink, signOut }}
     >
       {children}
     </AuthContext.Provider>
