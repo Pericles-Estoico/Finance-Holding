@@ -1,15 +1,16 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { BarChart3, FileText, List, Upload, Settings, LogOut, FlaskConical } from 'lucide-react'
+import { BarChart3, FileText, List, Upload, Settings, LogOut, FlaskConical, FileDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCompany } from '../../contexts/CompanyContext'
 import { useSimulation } from '../../contexts/SimulationContext'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: BarChart3, end: true },
-  { to: '/dre', label: 'DRE', icon: FileText },
-  { to: '/transacoes', label: 'Transações', icon: List },
-  { to: '/importar', label: 'Importar', icon: Upload },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+  { to: '/',             label: 'Dashboard',    icon: BarChart3, end: true },
+  { to: '/dre',          label: 'DRE',          icon: FileText },
+  { to: '/transacoes',   label: 'Transações',   icon: List },
+  { to: '/importar',     label: 'Importar',     icon: Upload },
+  { to: '/relatorios',   label: 'Relatórios',   icon: FileDown },
+  { to: '/configuracoes',label: 'Configurações',icon: Settings },
 ]
 
 export default function AppLayout() {
@@ -47,17 +48,17 @@ export default function AppLayout() {
           </select>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-0.5">
           {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-blue-800 text-white'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
                 }`
               }
             >

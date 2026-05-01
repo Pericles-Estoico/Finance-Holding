@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage'
 import DrePage from './pages/DrePage'
 import TransacoesPage from './pages/TransacoesPage'
 import ImportarPage from './pages/ImportarPage'
+import RelatoriosPage from './pages/RelatoriosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
 
 function ProtectedRoutes() {
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/dre" element={<DrePage />} />
             <Route path="/transacoes" element={<TransacoesPage />} />
             <Route path="/importar" element={<ImportarPage />} />
+            <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/configuracoes" element={<ConfiguracoesPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

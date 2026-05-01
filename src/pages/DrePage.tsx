@@ -152,8 +152,8 @@ export default function DrePage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">DRE</h2>
-          <p className="text-gray-400 text-xs mt-0.5">Demonstração do Resultado do Exercício</p>
+          <h2 className="text-xl font-bold text-slate-900">DRE</h2>
+          <p className="text-slate-400 text-xs mt-0.5">Demonstração do Resultado do Exercício</p>
         </div>
 
         {/* Filtros de período */}
@@ -180,15 +180,15 @@ export default function DrePage() {
       {dre && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Receita Bruta', value: formatBRL(dre.receitaBruta), color: 'text-gray-900' },
-            { label: 'Lucro Bruto', value: formatBRL(dre.lucroBruto), sub: formatPercent(dre.margemBruta), color: dre.margemBruta >= BENCHMARK.margemBruta.min ? 'text-green-600' : 'text-amber-500' },
-            { label: 'Lucro Operacional', value: formatBRL(dre.lucroOperacional), color: dre.lucroOperacional >= 0 ? 'text-blue-700' : 'text-red-500' },
-            { label: 'Lucro Líquido', value: formatBRL(dre.lucroLiquido), sub: formatPercent(dre.margemLiquida), color: dre.margemLiquida >= BENCHMARK.margemLiquida.min ? 'text-green-600' : dre.margemLiquida >= BENCHMARK.margemLiquida.min * 0.8 ? 'text-amber-500' : 'text-red-500' },
+            { label: 'Receita Bruta',       value: formatBRL(dre.receitaBruta),      color: 'text-blue-700' },
+            { label: 'Lucro Bruto',         value: formatBRL(dre.lucroBruto),         sub: formatPercent(dre.margemBruta),    color: dre.margemBruta >= BENCHMARK.margemBruta.min ? 'text-emerald-600' : 'text-amber-500' },
+            { label: 'Lucro Operacional',   value: formatBRL(dre.lucroOperacional),  color: dre.lucroOperacional >= 0 ? 'text-blue-700' : 'text-red-500' },
+            { label: 'Lucro Líquido',       value: formatBRL(dre.lucroLiquido),       sub: formatPercent(dre.margemLiquida),  color: dre.margemLiquida >= BENCHMARK.margemLiquida.min ? 'text-emerald-600' : dre.margemLiquida >= BENCHMARK.margemLiquida.min * 0.8 ? 'text-amber-500' : 'text-red-500' },
           ].map(({ label, value, sub, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-gray-100 p-4">
-              <p className="text-xs text-gray-400 mb-1">{label}</p>
-              <p className={`text-lg font-bold ${color}`}>{value}</p>
-              {sub && <p className={`text-xs mt-0.5 ${color}`}>{sub} da receita</p>}
+            <div key={label} className="bg-white rounded-xl border border-gray-100 p-5">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">{label}</p>
+              <p className={`font-mono text-lg font-semibold leading-none ${color}`}>{value}</p>
+              {sub && <p className={`text-xs mt-1.5 font-medium ${color}`}>{sub} da receita</p>}
             </div>
           ))}
         </div>
@@ -218,7 +218,7 @@ export default function DrePage() {
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
+              <tr className="bg-slate-50 text-[11px] font-semibold text-slate-400 uppercase tracking-wide border-b border-gray-100">
                 <th className="text-left px-4 py-2.5">Conta</th>
                 <th className="text-right px-4 py-2.5">Valor</th>
                 <th className="text-right px-4 py-2.5">% Receita</th>
