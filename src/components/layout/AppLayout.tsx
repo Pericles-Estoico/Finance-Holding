@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,14 +10,26 @@ import { useCompany } from '../../contexts/CompanyContext'
 import { useSimulation } from '../../contexts/SimulationContext'
 
 const navItems = [
-  { to: '/',              label: 'Dashboard',     icon: BarChart3,  end: true },
-  { to: '/dre',           label: 'DRE',           icon: FileText },
-  { to: '/transacoes',    label: 'Transações',    icon: List },
-  { to: '/importar',      label: 'Importar',      icon: Upload },
+  { to: '/',              label: 'Dashboard',      icon: BarChart3,  end: true },
+  { to: '/dre',           label: 'DRE',            icon: FileText },
+  { to: '/transacoes',    label: 'Transacoes',     icon: List },
+  { to: '/importar',      label: 'Importar',       icon: Upload },
   { to: '/fluxo-caixa',   label: 'Fluxo de Caixa', icon: TrendingUp },
-  { to: '/relatorios',    label: 'Relatórios',    icon: FileDown },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+  { to: '/relatorios',    label: 'Relatorios',     icon: FileDown },
+  { to: '/configuracoes', label: 'Configuracoes',  icon: Settings },
 ]
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : false
+  )
+  useEffect(() => {
+    const handler = () => setIsDesktop(window.innerWidth >= 1024)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isDesktop
+}
 
 function NavContent({ onClose }: { onClose?: () => void }) {
   const { user, signOut } = useAuth()
@@ -35,7 +47,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
           <span className="text-white font-semibold text-sm">Finance DRE</span>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors lg:hidden">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -49,14 +61,14 @@ function NavContent({ onClose }: { onClose?: () => void }) {
           onChange={(e) => setActiveCompanyId(e.target.value)}
           className="w-full bg-slate-800 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="consolidated">Visão Consolidada</option>
+          <option value="consolidated">Visao Consolidada</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
       </div>
 
-      {/* Navegação */}
+      {/* Navegacao */}
       <nav className="flex-1 p-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
@@ -65,7 +77,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
             end={end}
             onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              `flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-blue-800 text-white'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
@@ -78,7 +90,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
         ))}
       </nav>
 
-      {/* Rodapé do drawer */}
+      {/* Rodape */}
       <div className="p-4 border-t border-slate-700 space-y-2">
         <button
           onClick={toggleSimulation}
@@ -89,7 +101,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
           }`}
         >
           <FlaskConical className="w-4 h-4" />
-          {isSimulation ? 'Simulação ATIVA' : 'Modo Simulação'}
+          {isSimulation ? 'Simulacao ATIVA' : 'Modo Simulacao'}
         </button>
 
         <div className="flex items-center gap-2 px-3">
@@ -115,30 +127,41 @@ function NavContent({ onClose }: { onClose?: () => void }) {
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { isSimulation } = useSimulation()
+  const isDesktop = useIsDesktop()
+
+  // fecha drawer ao mudar para desktop
+  useEffect(() => {
+    if (isDesktop) setDrawerOpen(false)
+  }, [isDesktop])
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB' }}>
 
-      {/* ── Sidebar fixa (desktop ≥1024px) ── */}
-      <aside className="hidden lg:flex w-64 bg-slate-900 flex-col flex-shrink-0">
-        <NavContent />
-      </aside>
+      {/* Sidebar — somente desktop */}
+      {isDesktop && (
+        <aside style={{ width: 256, background: '#0F172A', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+          <NavContent />
+        </aside>
+      )}
 
-      {/* ── Drawer mobile (overlay slide-in) ── */}
+      {/* Drawer mobile — overlay slide-in */}
       <AnimatePresence>
-        {drawerOpen && (
+        {!isDesktop && drawerOpen && (
           <>
-            {/* Overlay escuro */}
             <motion.div
-              className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDrawerOpen(false)}
             />
-            {/* Drawer lateral */}
             <motion.aside
-              className="fixed top-0 left-0 bottom-0 w-72 bg-slate-900 z-50 flex flex-col lg:hidden shadow-2xl"
+              style={{
+                position: 'fixed', top: 0, left: 0, bottom: 0,
+                width: 288, background: '#0F172A', zIndex: 50,
+                display: 'flex', flexDirection: 'column',
+                boxShadow: '4px 0 24px rgba(0,0,0,0.4)',
+              }}
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
@@ -150,38 +173,45 @@ export default function AppLayout() {
         )}
       </AnimatePresence>
 
-      {/* ── Conteúdo principal ── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Conteudo principal */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {isSimulation && (
-          <div className="bg-amber-400 text-amber-900 text-xs font-semibold text-center py-1.5">
-            ⚗️ MODO SIMULAÇÃO — Dados fictícios, não afetam produção
+          <div style={{ background: '#FCD34D', color: '#78350F', fontSize: 12, fontWeight: 600, textAlign: 'center', padding: '6px 0' }}>
+            MODO SIMULACAO — Dados ficticios, nao afetam producao
           </div>
         )}
 
-        {/* Top bar mobile com botão hambúrguer */}
-        <header className="lg:hidden flex items-center gap-3 px-4 h-14 bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="text-slate-400 hover:text-white transition-colors p-1"
-            aria-label="Abrir menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-500 rounded-lg p-1">
-              <BarChart3 className="text-white w-4 h-4" />
+        {/* Top bar mobile com hamburguer */}
+        {!isDesktop && (
+          <header style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '0 16px', height: 56,
+            background: '#0F172A', borderBottom: '1px solid #1E293B',
+            position: 'sticky', top: 0, zIndex: 30,
+          }}>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              style={{ color: '#94A3B8', padding: 4, background: 'none', border: 'none', cursor: 'pointer' }}
+              aria-label="Abrir menu"
+            >
+              <Menu style={{ width: 24, height: 24 }} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ background: '#3B82F6', borderRadius: 8, padding: 4, display: 'flex' }}>
+                <BarChart3 style={{ color: 'white', width: 16, height: 16 }} />
+              </div>
+              <span style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>Finance DRE</span>
             </div>
-            <span className="text-white font-semibold text-sm">Finance DRE</span>
-          </div>
-          {isSimulation && (
-            <span className="ml-auto text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
-              SIMULAÇÃO
-            </span>
-          )}
-        </header>
+            {isSimulation && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#FCD34D', background: 'rgba(252,211,77,0.1)', padding: '2px 8px', borderRadius: 999 }}>
+                SIMULACAO
+              </span>
+            )}
+          </header>
+        )}
 
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
+        <main style={{ flex: 1, overflow: 'auto', padding: isDesktop ? 24 : 16 }}>
           <Outlet />
         </main>
       </div>
