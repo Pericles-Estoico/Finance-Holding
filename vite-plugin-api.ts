@@ -1,6 +1,27 @@
 import type { Plugin } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { OcrParsed } from './src/types/ocr'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Carrega .env manualmente — Vite só injeta VITE_* no cliente
+function loadEnvFile() {
+  try {
+    const envPath = resolve(process.cwd(), '.env')
+    const content = readFileSync(envPath, 'utf-8')
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const idx = trimmed.indexOf('=')
+      if (idx === -1) continue
+      const key = trimmed.slice(0, idx).trim()
+      const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
+      if (!process.env[key]) process.env[key] = val
+    }
+  } catch { /* .env opcional */ }
+}
+
+loadEnvFile()
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
