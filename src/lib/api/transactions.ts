@@ -2,6 +2,12 @@ import { supabase } from '../supabase'
 import type { Transaction } from '../../types'
 import { decimalToCents } from '../currency'
 
+function toError(e: unknown): Error {
+  if (e instanceof Error) return e
+  if (e && typeof e === 'object' && 'message' in e) return new Error(String((e as { message: unknown }).message))
+  return new Error(String(e))
+}
+
 export interface TransactionFilters {
   companyIds: string[]
   isSimulation: boolean
@@ -23,7 +29,7 @@ export async function getTransactions(filters: TransactionFilters): Promise<Tran
   if (filters.channel)  q = q.eq('channel', filters.channel)
 
   const { data, error } = await q
-  if (error) throw error
+  if (error) throw toError(error)
   return data ?? []
 }
 
@@ -44,7 +50,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     .insert({ ...payload, amount_cents: decimalToCents(payload.amount), amount: undefined })
     .select()
     .single()
-  if (error) throw error
+  if (error) throw toError(error)
   return data
 }
 
@@ -55,10 +61,10 @@ export async function updateTransaction(id: string, payload: Partial<Transaction
     delete update.amount
   }
   const { error } = await supabase.from('transactions').update(update).eq('id', id)
-  if (error) throw error
+  if (error) throw toError(error)
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
   const { error } = await supabase.from('transactions').delete().eq('id', id)
-  if (error) throw error
+  if (error) throw toError(error)
 }

@@ -61,6 +61,10 @@ export default function ImportarPage() {
   }
 
   const processOcr = async (base64: string, mimeType: string, driveUrl = '') => {
+    if (companies.length === 0) {
+      setError('Cadastre uma empresa em Configurações antes de importar comprovantes.')
+      return
+    }
     setStep('processing')
     setProcessing('Extraindo texto do comprovante...')
     setError(null)
