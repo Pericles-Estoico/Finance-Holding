@@ -7,11 +7,11 @@ export async function runOcr(fileBase64: string, mimeType: string): Promise<{ ra
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileBase64, mimeType }),
   })
-  if (!res.ok) {
-    const err = await res.json() as { error?: string }
-    throw new Error(err.error ?? 'Erro no OCR')
-  }
-  return res.json()
+  const text = await res.text()
+  let json: { rawText?: string; parsed?: OcrParsed; isMock?: boolean; error?: string }
+  try { json = JSON.parse(text) } catch { throw new Error(`Resposta inválida do servidor OCR (${res.status})`) }
+  if (!res.ok) throw new Error(json.error ?? `Erro no OCR (${res.status})`)
+  return json as { rawText: string; parsed: OcrParsed; isMock?: boolean }
 }
 
 export async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
