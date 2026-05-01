@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import DrePage from './pages/DrePage'
 import TransacoesPage from './pages/TransacoesPage'
+import FluxoCaixaPage from './pages/FluxoCaixaPage'
 import ImportarPage from './pages/ImportarPage'
 import RelatoriosPage from './pages/RelatoriosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/dre" element={<DrePage />} />
             <Route path="/transacoes" element={<TransacoesPage />} />
+            <Route path="/fluxo-caixa" element={<FluxoCaixaPage />} />
             <Route path="/importar" element={<ImportarPage />} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/configuracoes" element={<ConfiguracoesPage />} />

@@ -46,6 +46,27 @@ export interface Transaction {
   created_at: string
 }
 
+
+
+export type RecurrenceInterval = 'semanal' | 'quinzenal' | 'mensal' | 'anual'
+
+
+export interface RecurringTransaction {
+  id: string
+  company_id: string
+  account_id: string
+  type: TransactionType
+  amount_cents: number
+  description: string
+  start_date: string
+  end_date?: string
+  interval: RecurrenceInterval
+  channel?: SaleChannel
+  is_simulation: boolean
+  status: 'active' | 'cancelled'
+  created_at: string
+}
+
 export interface Benchmark {
   id: string
   metric_key: string

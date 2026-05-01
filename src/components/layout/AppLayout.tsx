@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { BarChart3, FileText, List, Upload, Settings, LogOut, FlaskConical, FileDown } from 'lucide-react'
+import { BarChart3, FileText, List, Upload, Settings, LogOut, FlaskConical, FileDown, LineChart } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCompany } from '../../contexts/CompanyContext'
 import { useSimulation } from '../../contexts/SimulationContext'
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/',             label: 'Dashboard',    icon: BarChart3, end: true },
   { to: '/dre',          label: 'DRE',          icon: FileText },
   { to: '/transacoes',   label: 'Transações',   icon: List },
+  { to: '/fluxo-caixa',  label: 'Fluxo de Caixa',icon: LineChart },
   { to: '/importar',     label: 'Importar',     icon: Upload },
   { to: '/relatorios',   label: 'Relatórios',   icon: FileDown },
   { to: '/configuracoes',label: 'Configurações',icon: Settings },
