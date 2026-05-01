@@ -124,6 +124,10 @@ export function apiPlugin(): Plugin {
             return
           }
 
+          // Reduz tamanho do base64 se necessário (Vision API aceita até ~10MB)
+          const sizeMB = Buffer.byteLength(fileBase64, 'base64') / 1024 / 1024
+          console.log(`[API] Arquivo: ${mimeType}, tamanho: ${sizeMB.toFixed(2)} MB`)
+
           const visionRes = await fetch(
             `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
             {
@@ -136,9 +140,30 @@ export function apiPlugin(): Plugin {
           )
 
           const data = await visionRes.json() as {
-            responses: Array<{ fullTextAnnotation?: { text: string }; error?: { message: string } }>
+            error?: { code: number; message: string; status: string }
+            responses?: Array<{ fullTextAnnotation?: { text: string }; error?: { message: string } }>
           }
-          const rawText = data.responses[0]?.fullTextAnnotation?.text ?? ''
+
+          // Erro retornado pela Vision API
+          if (data.error) {
+            console.error('[API] Vision API erro:', data.error)
+            sendJson(res, 502, { error: `Vision API: ${data.error.message} (${data.error.status})` })
+            return
+          }
+
+          if (!data.responses || data.responses.length === 0) {
+            sendJson(res, 502, { error: 'Vision API retornou resposta vazia' })
+            return
+          }
+
+          const response = data.responses[0]
+          if (response.error) {
+            sendJson(res, 502, { error: `Vision API: ${response.error.message}` })
+            return
+          }
+
+          const rawText = response.fullTextAnnotation?.text ?? ''
+          console.log(`[API] OCR extraiu ${rawText.length} caracteres`)
           sendJson(res, 200, { rawText, parsed: parseOcrText(rawText) })
 
         } catch (e: unknown) {
