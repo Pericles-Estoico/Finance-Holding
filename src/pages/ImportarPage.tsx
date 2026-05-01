@@ -96,7 +96,9 @@ export default function ImportarPage() {
 
       setStep('validate')
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro ao processar comprovante')
+      console.error('[ImportarPage] Erro OCR:', e)
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(`Erro ao processar comprovante: ${msg}`)
       setStep('select')
     }
     setProcessing('')

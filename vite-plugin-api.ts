@@ -2,11 +2,11 @@ import type { Plugin } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { OcrParsed } from './src/types/ocr'
 
-function readBody(req: IncomingMessage): Promise<string> {
+function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    let data = ''
-    req.on('data', chunk => { data += String(chunk) })
-    req.on('end', () => resolve(data))
+    const chunks: Buffer[] = []
+    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    req.on('end', () => resolve(Buffer.concat(chunks)))
     req.on('error', reject)
   })
 }
@@ -39,54 +39,67 @@ function parseOcrText(text: string): OcrParsed {
 
   const lower = text.toLowerCase()
   let suggestedAccountCode: string | null = null
-  if (/amazon|mercado livre|shopify|vtex|loja integrada/.test(lower))      suggestedAccountCode = '2.5'
-  else if (/correios|sedex|jadlog|total express|loggi|transportadora/.test(lower)) suggestedAccountCode = '3.4.1'
-  else if (/google ads|meta ads|facebook ads|tiktok ads|publicidade|marketing/.test(lower)) suggestedAccountCode = '3.1.1'
-  else if (/aluguel|condom[ií]nio|iptu/.test(lower))                       suggestedAccountCode = '3.2.2'
-  else if (/contador|contab|escrit[oó]rio cont[aá]bil/.test(lower))        suggestedAccountCode = '3.2.3'
-  else if (/banco|bradesco|ita[uú]|santander|tarifa|iof/.test(lower))      suggestedAccountCode = '3.3.2'
-  else if (/mat[eé]ria prima|insumo|material|tecido|pl[aá]stico/.test(lower)) suggestedAccountCode = '2.1'
-  else if (/embalagem|caixa|envelope|fita/.test(lower))                    suggestedAccountCode = '2.3'
+  if (/amazon|mercado livre|shopify|vtex/.test(lower))                       suggestedAccountCode = '2.5'
+  else if (/correios|sedex|jadlog|loggi|transportadora/.test(lower))         suggestedAccountCode = '3.4.1'
+  else if (/google ads|meta ads|facebook ads|publicidade|marketing/.test(lower)) suggestedAccountCode = '3.1.1'
+  else if (/aluguel|condom[ií]nio|iptu/.test(lower))                         suggestedAccountCode = '3.2.2'
+  else if (/contador|contab/.test(lower))                                    suggestedAccountCode = '3.2.3'
+  else if (/banco|bradesco|ita[uú]|santander|tarifa/.test(lower))            suggestedAccountCode = '3.3.2'
+  else if (/mat[eé]ria prima|insumo|tecido|pl[aá]stico/.test(lower))        suggestedAccountCode = '2.1'
+  else if (/embalagem|caixa|envelope/.test(lower))                           suggestedAccountCode = '2.3'
 
   return { date, totalCents, supplierName, supplierCnpj, suggestedAccountCode }
 }
 
 const MOCK_TEXT = 'Amazon Serviços de Varejo do Brasil Ltda\nCNPJ: 15.436.940/0001-03\nData: 15/04/2025\nTotal: R$ 1.250,00'
 
+function sendJson(res: ServerResponse, status: number, data: unknown) {
+  res.writeHead(status, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify(data))
+}
+
 export function apiPlugin(): Plugin {
   return {
     name: 'vite-api-plugin',
     configureServer(server) {
-      server.middlewares.use('/api/ocr', async (req: IncomingMessage, res: ServerResponse) => {
-        res.setHeader('Content-Type', 'application/json')
-
-        if (req.method !== 'POST') {
-          res.writeHead(405)
-          res.end(JSON.stringify({ error: 'Method not allowed' }))
+      // Usa middleware genérico com checagem de URL para evitar problemas de path stripping
+      server.middlewares.use(async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.url !== '/api/ocr' || req.method !== 'POST') {
+          next()
           return
         }
 
+        console.log('[API] POST /api/ocr recebido')
+
         try {
-          const body = await readBody(req)
-          if (!body) {
-            res.writeHead(400)
-            res.end(JSON.stringify({ error: 'Body vazio' }))
+          const bodyBuf = await readBody(req)
+          const bodyStr = bodyBuf.toString('utf-8')
+
+          if (!bodyStr) {
+            sendJson(res, 400, { error: 'Body vazio' })
             return
           }
 
-          const { fileBase64, mimeType } = JSON.parse(body) as { fileBase64?: string; mimeType?: string }
+          let parsed: { fileBase64?: string; mimeType?: string }
+          try {
+            parsed = JSON.parse(bodyStr) as { fileBase64?: string; mimeType?: string }
+          } catch {
+            sendJson(res, 400, { error: 'JSON inválido no body' })
+            return
+          }
+
+          const { fileBase64, mimeType } = parsed
 
           if (!fileBase64 || !mimeType) {
-            res.writeHead(400)
-            res.end(JSON.stringify({ error: 'fileBase64 e mimeType são obrigatórios' }))
+            sendJson(res, 400, { error: 'fileBase64 e mimeType são obrigatórios' })
             return
           }
 
           const apiKey = process.env.GOOGLE_VISION_API_KEY
 
           if (!apiKey) {
-            res.writeHead(200)
-            res.end(JSON.stringify({ rawText: MOCK_TEXT, parsed: parseOcrText(MOCK_TEXT), isMock: true }))
+            console.log('[API] Sem GOOGLE_VISION_API_KEY — retornando mock')
+            sendJson(res, 200, { rawText: MOCK_TEXT, parsed: parseOcrText(MOCK_TEXT), isMock: true })
             return
           }
 
@@ -105,12 +118,12 @@ export function apiPlugin(): Plugin {
             responses: Array<{ fullTextAnnotation?: { text: string }; error?: { message: string } }>
           }
           const rawText = data.responses[0]?.fullTextAnnotation?.text ?? ''
-          res.writeHead(200)
-          res.end(JSON.stringify({ rawText, parsed: parseOcrText(rawText) }))
+          sendJson(res, 200, { rawText, parsed: parseOcrText(rawText) })
 
         } catch (e: unknown) {
-          res.writeHead(500)
-          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro interno no servidor OCR' }))
+          const msg = e instanceof Error ? e.message : 'Erro interno'
+          console.error('[API] Erro no OCR:', msg)
+          sendJson(res, 500, { error: msg })
         }
       })
     },
