@@ -90,11 +90,12 @@ export async function openDrivePicker(): Promise<DriveFile | null> {
           google: { picker: { DocsView: new (id: unknown) => unknown; ViewId: { DOCS: unknown } } }
         }).google.picker.DocsView(window.google.picker.ViewId.DOCS)
 
-        const picker = new window.google.picker.PickerBuilder()
+        let builder = new window.google.picker.PickerBuilder()
           .addView(view)
           .setOAuthToken(accessToken!)
-          .setDeveloperKey(API_KEY ?? '')
           .setTitle('Selecione um comprovante')
+        if (API_KEY) builder = builder.setDeveloperKey(API_KEY)
+        const picker = builder
           .setCallback((data: GooglePickerResponse) => {
             if (data.action === window.google.picker.Action.PICKED && data.docs?.[0]) {
               const doc = data.docs[0]
