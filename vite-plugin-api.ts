@@ -1,33 +1,83 @@
 import type { Plugin } from 'vite'
-import { parseOcrText } from './api/ocr'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { OcrParsed } from './src/types/ocr'
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = ''
-    req.on('data', chunk => { data += chunk })
+    req.on('data', chunk => { data += String(chunk) })
     req.on('end', () => resolve(data))
     req.on('error', reject)
   })
 }
+
+function parseOcrText(text: string): OcrParsed {
+  const dateMatch =
+    text.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/) ||
+    text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)
+  let date: string | null = null
+  if (dateMatch) {
+    date = dateMatch[0].includes('/')
+      ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
+      : dateMatch[0]
+  }
+
+  const valueMatch = text.match(
+    /(?:total|valor total|vl\.?\s*total|r\$)\s*[:\s]?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/i
+  )
+  let totalCents: number | null = null
+  if (valueMatch) {
+    const raw = valueMatch[1].replace(/\./g, '').replace(',', '.')
+    totalCents = Math.round(parseFloat(raw) * 100)
+  }
+
+  const cnpjMatch = text.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/)
+  const supplierCnpj = cnpjMatch ? cnpjMatch[0] : null
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+  const supplierName = lines.find(l => l.length > 3 && !/^\d/.test(l) && !/cnpj/i.test(l)) ?? null
+
+  const lower = text.toLowerCase()
+  let suggestedAccountCode: string | null = null
+  if (/amazon|mercado livre|shopify|vtex|loja integrada/.test(lower))      suggestedAccountCode = '2.5'
+  else if (/correios|sedex|jadlog|total express|loggi|transportadora/.test(lower)) suggestedAccountCode = '3.4.1'
+  else if (/google ads|meta ads|facebook ads|tiktok ads|publicidade|marketing/.test(lower)) suggestedAccountCode = '3.1.1'
+  else if (/aluguel|condom[ií]nio|iptu/.test(lower))                       suggestedAccountCode = '3.2.2'
+  else if (/contador|contab|escrit[oó]rio cont[aá]bil/.test(lower))        suggestedAccountCode = '3.2.3'
+  else if (/banco|bradesco|ita[uú]|santander|tarifa|iof/.test(lower))      suggestedAccountCode = '3.3.2'
+  else if (/mat[eé]ria prima|insumo|material|tecido|pl[aá]stico/.test(lower)) suggestedAccountCode = '2.1'
+  else if (/embalagem|caixa|envelope|fita/.test(lower))                    suggestedAccountCode = '2.3'
+
+  return { date, totalCents, supplierName, supplierCnpj, suggestedAccountCode }
+}
+
+const MOCK_TEXT = 'Amazon Serviços de Varejo do Brasil Ltda\nCNPJ: 15.436.940/0001-03\nData: 15/04/2025\nTotal: R$ 1.250,00'
 
 export function apiPlugin(): Plugin {
   return {
     name: 'vite-api-plugin',
     configureServer(server) {
       server.middlewares.use('/api/ocr', async (req: IncomingMessage, res: ServerResponse) => {
+        res.setHeader('Content-Type', 'application/json')
+
         if (req.method !== 'POST') {
-          res.writeHead(405, { 'Content-Type': 'application/json' })
+          res.writeHead(405)
           res.end(JSON.stringify({ error: 'Method not allowed' }))
           return
         }
 
         try {
           const body = await readBody(req)
+          if (!body) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: 'Body vazio' }))
+            return
+          }
+
           const { fileBase64, mimeType } = JSON.parse(body) as { fileBase64?: string; mimeType?: string }
 
           if (!fileBase64 || !mimeType) {
-            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.writeHead(400)
             res.end(JSON.stringify({ error: 'fileBase64 e mimeType são obrigatórios' }))
             return
           }
@@ -35,10 +85,8 @@ export function apiPlugin(): Plugin {
           const apiKey = process.env.GOOGLE_VISION_API_KEY
 
           if (!apiKey) {
-            // Mock realista para desenvolvimento sem chave Vision
-            const mockText = 'Amazon Serviços de Varejo do Brasil Ltda\nCNPJ: 15.436.940/0001-03\nData: 15/04/2025\nTotal: R$ 1.250,00'
-            res.writeHead(200, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ rawText: mockText, parsed: parseOcrText(mockText), isMock: true }))
+            res.writeHead(200)
+            res.end(JSON.stringify({ rawText: MOCK_TEXT, parsed: parseOcrText(MOCK_TEXT), isMock: true }))
             return
           }
 
@@ -52,15 +100,17 @@ export function apiPlugin(): Plugin {
               }),
             }
           )
+
           const data = await visionRes.json() as {
             responses: Array<{ fullTextAnnotation?: { text: string }; error?: { message: string } }>
           }
           const rawText = data.responses[0]?.fullTextAnnotation?.text ?? ''
-          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.writeHead(200)
           res.end(JSON.stringify({ rawText, parsed: parseOcrText(rawText) }))
+
         } catch (e: unknown) {
-          res.writeHead(500, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro interno' }))
+          res.writeHead(500)
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro interno no servidor OCR' }))
         }
       })
     },
