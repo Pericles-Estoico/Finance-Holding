@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { Calendar, Filter, Download } from 'lucide-react'
 import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
 import { getTransactions } from '../lib/api/transactions'
@@ -88,7 +87,7 @@ export default function FluxoCaixaPage() {
         currentBalance += (entry.receitas - entry.despesas)
         
         // Converte data para exibir melhor
-        const [yy, mm, dd] = d.split('-')
+        const [, mm, dd] = d.split('-')
         chartData.push({
           date: `${dd}/${mm}`,
           fullDate: d,

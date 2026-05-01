@@ -1,4 +1,4 @@
-import type { Transaction, RecurringTransaction } from '../../types'
+import type { Transaction, RecurringTransaction } from '../types'
 
 export interface ProjectedTransaction {
   id: string

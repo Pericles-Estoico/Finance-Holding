@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, CreditCard, Camera, BarChart2, Menu, FileDown, Settings, LogOut, FlaskConical, X, ChevronRight } from 'lucide-react'
+import { Home, CreditCard, Camera, BarChart2, Menu, FileDown, Settings, LogOut, FlaskConical, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCompany } from '../../contexts/CompanyContext'
 import { useSimulation } from '../../contexts/SimulationContext'

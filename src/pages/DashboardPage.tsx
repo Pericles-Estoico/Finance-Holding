@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import {
-  LineChart, Line, PieChart, Pie, Cell,
+  LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
