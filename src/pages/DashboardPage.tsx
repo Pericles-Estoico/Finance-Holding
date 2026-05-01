@@ -19,9 +19,9 @@ import Decimal from 'decimal.js'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-type Period = 'mes_atual' | 'trimestre' | 'ano_atual' | 'custom'
+type Period = 'hoje' | 'mes_atual' | 'trimestre' | 'ano_atual' | 'custom'
 const PERIOD_LABELS: Record<Period, string> = {
-  mes_atual: 'Este mês', trimestre: 'Trimestre', ano_atual: 'Este ano', custom: 'Personalizado',
+  hoje: 'Hoje', mes_atual: 'Este mês', trimestre: 'Trimestre', ano_atual: 'Este ano', custom: 'Personalizado',
 }
 
 const BM = { margemBruta: { min: 55, max: 70 }, margemLiquida: { min: 18, max: 26 }, aov: { min: 20000, max: 50000 } }
@@ -38,7 +38,9 @@ const CH_NAME: Record<string, string> = {
 // ─── Período ─────────────────────────────────────────────────────────────────
 
 function getRange(p: Period, f: string, t: string) {
-  const n = new Date(), y = n.getFullYear(), m = n.getMonth()
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate()
+  const hojeStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+  if (p === 'hoje') return { from: hojeStr, to: hojeStr }
   if (p === 'mes_atual') return { from: `${y}-${String(m+1).padStart(2,'0')}-01`, to: `${y}-${String(m+1).padStart(2,'0')}-31` }
   if (p === 'trimestre') { const q=Math.floor(m/3); return { from:`${y}-${String(q*3+1).padStart(2,'0')}-01`, to:`${y}-${String(Math.min(q*3+3,12)).padStart(2,'0')}-30` } }
   if (p === 'ano_atual') return { from: `${y}-01-01`, to: `${y}-12-31` }
@@ -46,6 +48,11 @@ function getRange(p: Period, f: string, t: string) {
 }
 function getPrevRange(p: Period, f: string, t: string) {
   const n = new Date(), y = n.getFullYear(), m = n.getMonth()
+  if (p === 'hoje') {
+    const yest = new Date(y, m, n.getDate() - 1)
+    const ontemStr = `${yest.getFullYear()}-${String(yest.getMonth()+1).padStart(2,'0')}-${String(yest.getDate()).padStart(2,'0')}`
+    return { from: ontemStr, to: ontemStr }
+  }
   if (p === 'mes_atual') { const pm=m===0?12:m,py=m===0?y-1:y; return { from:`${py}-${String(pm).padStart(2,'0')}-01`, to:`${py}-${String(pm).padStart(2,'0')}-31` } }
   if (p === 'trimestre') { const q=Math.floor(m/3),pq=q===0?3:q-1,py=q===0?y-1:y; return { from:`${py}-${String(pq*3+1).padStart(2,'0')}-01`, to:`${py}-${String(Math.min(pq*3+3,12)).padStart(2,'0')}-30` } }
   if (p === 'ano_atual') return { from: `${y-1}-01-01`, to: `${y-1}-12-31` }
@@ -123,7 +130,7 @@ export default function DashboardPage() {
   const { companies, activeCompanyId } = useCompany()
   const { isSimulation } = useSimulation()
 
-  const [period, setPeriod]         = useState<Period>('mes_atual')
+  const [period, setPeriod]         = useState<Period>('hoje')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo]     = useState('')
   const [loading, setLoading]       = useState(false)
