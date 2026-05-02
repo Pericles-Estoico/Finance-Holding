@@ -7,12 +7,13 @@ import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
 import { useAuth } from '../contexts/AuthContext'
 import { runOcr, fileToBase64 } from '../lib/api/ocr'
-import { openDrivePicker, downloadDriveFileAsBase64, listFolderFiles, authorizeGoogleDrive } from '../lib/googleDrive'
+import { openDrivePicker, downloadDriveFileAsBase64 } from '../lib/googleDrive'
 import { getAccounts } from '../lib/api/accounts'
 import { createTransaction } from '../lib/api/transactions'
 import {
   checkProcessedFiles, processFile, getPendingClassifications,
   classifyPending, getDriveConfig, saveDriveConfig,
+  listFolderFilesServer, downloadDriveFileServer,
 } from '../lib/api/driveImport'
 import type { AccountCategory, SaleChannel, PendingClassification } from '../types'
 import type { OcrParsed } from '../lib/api/ocr'
@@ -236,7 +237,6 @@ export default function ImportarPage() {
   const handleScanFolder = async () => {
     if (!activeCompany) { setDriveError('Selecione uma empresa primeiro.'); return }
     if (!folderUrl) { setDriveError('Configure a URL da pasta do Drive primeiro.'); return }
-    if (!hasDriveConfig) { setDriveError('VITE_GOOGLE_DRIVE_CLIENT_ID nao configurado.'); return }
 
     const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/)
     const folderId = match?.[1]
@@ -247,8 +247,7 @@ export default function ImportarPage() {
     setScanProgress(null)
 
     try {
-      await authorizeGoogleDrive()
-      const files = await listFolderFiles(folderId)
+      const files = await listFolderFilesServer(folderId)
       if (files.length === 0) {
         setScanProgress({ total: 0, current: 0, autoCreated: 0, pending: 0, skipped: 0 })
         setScanning(false)
@@ -271,7 +270,7 @@ export default function ImportarPage() {
 
       for (const file of newFiles) {
         try {
-          const { base64, mimeType } = await downloadDriveFileAsBase64(file.id)
+          const { base64, mimeType } = await downloadDriveFileServer(file.id)
           const result = await processFile({
             company_id: activeCompany.id,
             file_id: file.id,
@@ -566,18 +565,12 @@ export default function ImportarPage() {
 
             <button
               onClick={handleScanFolder}
-              disabled={scanning || !folderUrl || !hasDriveConfig}
+              disabled={scanning || !folderUrl}
               className="w-full flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {scanning ? 'Escaneando...' : 'Escanear pasta agora'}
             </button>
-
-            {!hasDriveConfig && (
-              <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                Configure <code>VITE_GOOGLE_DRIVE_CLIENT_ID</code> no .env para habilitar o Drive.
-              </p>
-            )}
           </div>
 
           {driveError && (

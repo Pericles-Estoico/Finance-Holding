@@ -81,6 +81,33 @@ export async function getDriveConfig(companyId: string): Promise<{ folder_id?: s
   return res.json() as Promise<{ folder_id?: string; folder_url?: string }>
 }
 
+export interface DriveFolderFileServer {
+  id: string
+  name: string
+  mimeType: string
+  webViewLink: string
+  createdTime: string
+}
+
+export async function listFolderFilesServer(folderId: string): Promise<DriveFolderFileServer[]> {
+  const res = await fetch(`${BASE}/api/drive-import/list-folder?folder_id=${encodeURIComponent(folderId)}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(err.error ?? `Erro ${res.status} ao listar pasta`)
+  }
+  const data = await res.json() as { files: DriveFolderFileServer[] }
+  return data.files
+}
+
+export async function downloadDriveFileServer(fileId: string): Promise<{ base64: string; mimeType: string }> {
+  const res = await fetch(`${BASE}/api/drive-import/download-file?file_id=${encodeURIComponent(fileId)}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(err.error ?? `Erro ${res.status} ao baixar arquivo`)
+  }
+  return res.json() as Promise<{ base64: string; mimeType: string }>
+}
+
 export async function saveDriveConfig(companyId: string, folderUrl: string): Promise<void> {
   const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/)
   const folder_id = match?.[1]

@@ -598,6 +598,57 @@ app.post('/api/drive-import/config', async (req, res) => {
   }
 })
 
+// ── Drive API (server-side, API key — pastas públicas/compartilhadas) ────────
+
+app.get('/api/drive-import/list-folder', async (req, res) => {
+  try {
+    const folder_id = req.query.folder_id as string
+    if (!folder_id) return res.status(400).json({ error: 'folder_id obrigatório' })
+    const apiKey = process.env.VITE_GOOGLE_DRIVE_API_KEY ?? process.env.GOOGLE_VISION_API_KEY
+    if (!apiKey) return res.status(500).json({ error: 'VITE_GOOGLE_DRIVE_API_KEY não configurado' })
+    const params = new URLSearchParams({
+      q: `'${folder_id}' in parents and trashed = false and (mimeType contains 'image/' or mimeType = 'application/pdf')`,
+      fields: 'files(id,name,mimeType,webViewLink,createdTime)',
+      pageSize: '100',
+      orderBy: 'createdTime desc',
+      key: apiKey,
+    })
+    const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`)
+    if (!driveRes.ok) {
+      const err = await driveRes.json().catch(() => ({})) as { error?: { message?: string } }
+      return res.status(driveRes.status).json({ error: `Drive API: ${err?.error?.message ?? driveRes.status}` })
+    }
+    const data = await driveRes.json() as { files: Array<{ id: string; name: string; mimeType: string; webViewLink: string; createdTime: string }> }
+    return res.json({ files: data.files ?? [] })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
+app.get('/api/drive-import/download-file', async (req, res) => {
+  try {
+    const file_id = req.query.file_id as string
+    if (!file_id) return res.status(400).json({ error: 'file_id obrigatório' })
+    const apiKey = process.env.VITE_GOOGLE_DRIVE_API_KEY ?? process.env.GOOGLE_VISION_API_KEY
+    if (!apiKey) return res.status(500).json({ error: 'VITE_GOOGLE_DRIVE_API_KEY não configurado' })
+    const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file_id}?fields=mimeType%2Cname&key=${apiKey}`)
+    if (!metaRes.ok) {
+      const err = await metaRes.json().catch(() => ({})) as { error?: { message?: string } }
+      return res.status(metaRes.status).json({ error: `Drive API (meta): ${err?.error?.message ?? metaRes.status}` })
+    }
+    const meta = await metaRes.json() as { mimeType: string; name: string }
+    const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file_id}?alt=media&key=${apiKey}`)
+    if (!contentRes.ok) {
+      const err = await contentRes.json().catch(() => ({})) as { error?: { message?: string } }
+      return res.status(contentRes.status).json({ error: `Drive API (download): ${err?.error?.message ?? contentRes.status}` })
+    }
+    const buffer = Buffer.from(await contentRes.arrayBuffer())
+    return res.json({ base64: buffer.toString('base64'), mimeType: meta.mimeType, name: meta.name })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+  }
+})
+
 // ── Inicialização ─────────────────────────────────────────────────────────────
 
 const PORT = Number(process.env.PORT ?? 3001)
