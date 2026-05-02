@@ -45,6 +45,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     return res.json({ status: 'pending', pending_id: pending.id, extracted })
   } catch (e: unknown) {
-    return res.status(500).json({ error: e instanceof Error ? e.message : 'Erro interno' })
+    const msg = e instanceof Error ? e.message : String(e)
+    const stack = e instanceof Error ? e.stack : undefined
+    console.error('[process-file] ERROR:', msg, stack)
+    return res.status(500).json({ error: msg })
   }
 }
