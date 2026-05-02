@@ -268,6 +268,7 @@ export default function ImportarPage() {
         return
       }
 
+      const errors: string[] = []
       for (const file of newFiles) {
         try {
           const { base64, mimeType } = await downloadDriveFileServer(file.id)
@@ -283,11 +284,13 @@ export default function ImportarPage() {
           if (result.status === 'auto_created') progress.autoCreated++
           else if (result.status === 'pending') progress.pending++
           else if (result.status === 'already_processed') progress.skipped++
-        } catch {
+        } catch (err) {
           progress.current++
+          errors.push(`${file.name}: ${err instanceof Error ? err.message : String(err)}`)
         }
         setScanProgress({ ...progress })
       }
+      if (errors.length > 0) setDriveError(`Erros em ${errors.length} arquivo(s): ${errors[0]}`)
 
       await loadPending(activeCompany.id)
     } catch (e: unknown) {
