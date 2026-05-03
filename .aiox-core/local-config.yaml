@@ -1,0 +1,59 @@
+# AIOX Local Config — Finance Holding
+# Gerado automaticamente — editável (L3 Project Config)
+
+project:
+  name: finance-holding
+  display_name: "Finance Holding"
+  description: "SaaS de gestão financeira executiva para confecções e marketplaces"
+  type: brownfield
+  language: pt-BR
+  version: "1.0.0"
+
+user_profile: advanced
+
+ide:
+  primary: claude-code
+  secondary: []
+
+tech_preset:
+  framework: react
+  language: typescript
+  bundler: vite
+  styling: tailwindcss
+  database: supabase
+  deploy: vercel
+
+agents:
+  enabled:
+    - aiox-dev
+    - aiox-architect
+    - aiox-analyst
+    - db-sage
+    - aiox-qa
+    - aiox-devops
+  entry_agent: aiox-dev
+
+squad:
+  active: null
+
+package_manager: npm
+
+quality:
+  min_score: 7.0
+  smoke_tests: 3
+
+domain:
+  finance:
+    dre_date_field: competence_date
+    cashflow_projected_field: due_date
+    cashflow_realized_field: paid_or_received_date
+    calculations_only_in_services: true
+    protected_tables:
+      - companies
+      - chart_of_accounts
+      - transactions
+
+environment:
+  supabase_project_ref: tkvlzjvaazhjbxwsnywc
+  deploy_platform: vercel
+  production_url: financedre.com.br

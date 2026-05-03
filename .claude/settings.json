@@ -1,0 +1,29 @@
+{
+  "language": "portuguese",
+  "model": "claude-opus-4-7",
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(node *)",
+      "Bash(npx *)",
+      "Read(.aiox-core/**)",
+      "Read(.claude/**)",
+      "Read(src/**)",
+      "Read(api/**)",
+      "Read(supabase/**)",
+      "Edit(src/**)",
+      "Edit(api/**)",
+      "Edit(supabase/**)",
+      "Write(src/**)",
+      "Write(api/**)",
+      "Write(supabase/**)"
+    ],
+    "deny": [
+      "Edit(.aiox-core/core/**)",
+      "Edit(.aiox-core/constitution.md)",
+      "Write(.aiox-core/core/**)",
+      "Write(.aiox-core/constitution.md)"
+    ]
+  }
+}
