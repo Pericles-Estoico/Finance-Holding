@@ -9,6 +9,8 @@ import EbitdaScreen from '../features/finance/components/EbitdaScreen'
 import CashFlowScreen from '../features/finance/components/CashFlowScreen'
 import InvestorKPIsScreen from '../features/finance/components/InvestorKPIsScreen'
 import ExecutiveSummaryScreen from '../features/finance/components/ExecutiveSummaryScreen'
+import SensitivityScreen from '../features/finance/components/SensitivityScreen'
+import CashFlowProjectionScreen from '../features/finance/components/CashFlowProjectionScreen'
 import type { DateRange } from '../features/finance/types/finance.types'
 
 function fmt(d: Date): string {
@@ -94,6 +96,30 @@ export default function FinanceExecutivePage() {
         title: 'Executive Summary',
         component: (
           <ExecutiveSummaryScreen
+            companyId={companyId}
+            startDate={period.from}
+            endDate={period.to}
+            onPeriodChange={setPeriod}
+          />
+        ),
+      },
+      {
+        id: 'sensitivity',
+        title: 'Análise de Sensibilidade',
+        component: (
+          <SensitivityScreen
+            companyId={companyId}
+            startDate={period.from}
+            endDate={period.to}
+            onPeriodChange={setPeriod}
+          />
+        ),
+      },
+      {
+        id: 'cashflow-projection',
+        title: 'Projeção 3-5 Anos',
+        component: (
+          <CashFlowProjectionScreen
             companyId={companyId}
             startDate={period.from}
             endDate={period.to}

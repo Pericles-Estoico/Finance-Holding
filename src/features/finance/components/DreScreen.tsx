@@ -5,7 +5,7 @@ import DreTable from './DreTable'
 import DrillDownModal from './DrillDownModal'
 import { calculateDRE, ifrsDREToLegacy } from '../services/financeCalculations'
 import { calculateIFRSDRE } from '../services/ifrsEngine'
-import { getChartAccounts, getFinancialEntries } from '../services/financeApi'
+import { getChartAccounts, getFinancialEntries, getConsolidatedEntries, getCostCenters } from '../services/financeApi'
 import { getCorporateChart } from '../services/corporateChartApi'
 import type { ChartAccountV2 } from '../services/corporateChartApi'
 import {
@@ -17,6 +17,7 @@ import { fmtBRL } from '../../../lib/currency'
 import type {
   ChartAccount,
   FinancialEntry,
+  CostCenter,
   DateRange,
 } from '../types/finance.types'
 
@@ -61,6 +62,7 @@ export default function DreScreen({
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,6 +70,10 @@ export default function DreScreen({
   const [drillTitle, setDrillTitle] = useState('')
   const [drillEntries, setDrillEntries] = useState<FinancialEntry[]>([])
   const [showComparison, setShowComparison] = useState(false)
+
+  // Story 2.3: toggle consolidado e filtro canal
+  const [consolidated, setConsolidated] = useState(false)
+  const [selectedCostCenter, setSelectedCostCenter] = useState<string>('all')
 
   useEffect(() => {
     let cancelled = false
@@ -86,10 +92,11 @@ export default function DreScreen({
       }
 
       try {
-        const [accountsData, entriesData, accountsV2Data] = await Promise.all([
+        const [accountsData, entriesData, accountsV2Data, costCentersData] = await Promise.all([
           getChartAccounts(companyId),
           getFinancialEntries(companyId),
           getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
+          getCostCenters(companyId).catch(() => [] as CostCenter[]),
         ])
         if (cancelled) return
         if (entriesData.length === 0 || accountsData.length === 0) {
@@ -99,6 +106,7 @@ export default function DreScreen({
           setEntries(entriesData)
           setChartAccounts(accountsData)
           setChartAccountsV2(accountsV2Data)
+          setCostCenters(costCentersData)
         }
       } catch (err) {
         if (cancelled) return
@@ -116,6 +124,30 @@ export default function DreScreen({
     }
   }, [companyId, isSimulation])
 
+  // Quando consolidado é ativado, buscar lançamentos de todas as empresas
+  useEffect(() => {
+    if (!consolidated || isSimulation || !companyId) return
+    let cancelled = false
+    getConsolidatedEntries()
+      .then((data) => {
+        if (!cancelled) setEntries(data)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [consolidated, companyId, isSimulation])
+
+  // Quando voltamos ao individual, recarregar lançamentos da empresa
+  useEffect(() => {
+    if (consolidated || isSimulation || !companyId || companyId === 'consolidated') return
+    let cancelled = false
+    getFinancialEntries(companyId)
+      .then((data) => {
+        if (!cancelled && data.length > 0) setEntries(data)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [consolidated, companyId, isSimulation])
+
   const period = useMemo<DateRange>(
     () => ({ from: startDate, to: endDate }),
     [startDate, endDate]
@@ -126,23 +158,42 @@ export default function DreScreen({
     [startDate, endDate]
   )
 
+  // Filtragem por centro de custo (canal)
+  const filteredEntries = useMemo(() => {
+    if (selectedCostCenter === 'all') return entries
+    return entries.filter((e) => e.cost_center_id === selectedCostCenter)
+  }, [entries, selectedCostCenter])
+
   const useIFRS = chartAccountsV2.length > 0
 
   const dre = useMemo(
     () =>
       useIFRS
-        ? ifrsDREToLegacy(calculateIFRSDRE(entries, chartAccountsV2, period))
-        : calculateDRE(entries, chartAccounts, period),
-    [entries, chartAccounts, chartAccountsV2, period, useIFRS]
+        ? ifrsDREToLegacy(calculateIFRSDRE(filteredEntries, chartAccountsV2, period))
+        : calculateDRE(filteredEntries, chartAccounts, period),
+    [filteredEntries, chartAccounts, chartAccountsV2, period, useIFRS]
   )
 
   const prevDre = useMemo(
     () =>
       useIFRS
-        ? ifrsDREToLegacy(calculateIFRSDRE(entries, chartAccountsV2, previousPeriod))
-        : calculateDRE(entries, chartAccounts, previousPeriod),
-    [entries, chartAccounts, chartAccountsV2, previousPeriod, useIFRS]
+        ? ifrsDREToLegacy(calculateIFRSDRE(filteredEntries, chartAccountsV2, previousPeriod))
+        : calculateDRE(filteredEntries, chartAccounts, previousPeriod),
+    [filteredEntries, chartAccounts, chartAccountsV2, previousPeriod, useIFRS]
   )
+
+  // Etiqueta de contexto
+  const contextLabel = useMemo(() => {
+    const parts: string[] = []
+    if (consolidated) parts.push('Consolidado')
+    if (selectedCostCenter !== 'all') {
+      const cc = costCenters.find((c) => c.id === selectedCostCenter)
+      if (cc) parts.push(cc.name)
+    }
+    const month = new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    parts.push(month)
+    return parts.join(' · ')
+  }, [consolidated, selectedCostCenter, costCenters, startDate])
 
   function handleDrillDown(group: string, list: FinancialEntry[]) {
     setDrillTitle(group)
@@ -164,7 +215,7 @@ export default function DreScreen({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">DRE</h1>
           <p className="text-sm text-gray-500">
-            Demonstrativo de Resultado por regime de competencia
+            Demonstrativo de Resultado por regime de competência
           </p>
         </div>
         {onPeriodChange && (
@@ -172,15 +223,49 @@ export default function DreScreen({
         )}
       </div>
 
+      {/* Story 2.3: controles de consolidado e canal */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+          <button
+            onClick={() => { setConsolidated(false); setSelectedCostCenter('all') }}
+            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${!consolidated ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Individual
+          </button>
+          <button
+            onClick={() => { setConsolidated(true); setSelectedCostCenter('all') }}
+            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${consolidated ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Consolidado
+          </button>
+        </div>
+
+        {costCenters.length > 0 && (
+          <select
+            value={selectedCostCenter}
+            onChange={(e) => setSelectedCostCenter(e.target.value)}
+            disabled={consolidated}
+            className="text-xs border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="all">Todos os Canais</option>
+            {costCenters.map((cc) => (
+              <option key={cc.id} value={cc.id}>{cc.name}</option>
+            ))}
+          </select>
+        )}
+
+        <span className="text-xs text-gray-400 ml-auto">{contextLabel}</span>
+      </div>
+
       {error && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-          {error} - exibindo dados de demonstracao.
+          {error} - exibindo dados de demonstração.
         </div>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <FinancialKpiCard
-          title="Receita Liquida"
+          title="Receita Líquida"
           value={fmtBRL(dre.receitaLiquida)}
           subtitle={`Bruta: ${fmtBRL(dre.receitaBruta)}`}
           variant="positive"
@@ -198,15 +283,15 @@ export default function DreScreen({
           variant={dre.ebitda >= 0 ? 'positive' : 'negative'}
         />
         <FinancialKpiCard
-          title="Lucro Liquido"
+          title="Lucro Líquido"
           value={fmtBRL(dre.lucroLiquido)}
           subtitle="Resultado final"
           variant={dre.lucroLiquido >= 0 ? 'positive' : 'negative'}
         />
         <FinancialKpiCard
-          title="Margem Liquida"
+          title="Margem Líquida"
           value={fmtPct(dre.margemLiquida)}
-          subtitle="Lucro / Rec. liquida"
+          subtitle="Lucro / Rec. líquida"
         />
       </div>
 
@@ -215,7 +300,7 @@ export default function DreScreen({
           <div>
             <h3 className="font-semibold text-gray-900">DRE Detalhada</h3>
             <p className="text-xs text-gray-500">
-              Clique em uma linha para ver os lancamentos
+              Clique em uma linha para ver os lançamentos
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -226,7 +311,7 @@ export default function DreScreen({
               Comparar período anterior
             </button>
             <span className="text-xs text-gray-400">
-              Regime: <span className="font-semibold text-gray-600">Competencia</span>
+              Regime: <span className="font-semibold text-gray-600">Competência</span>
             </span>
           </div>
         </div>

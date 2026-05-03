@@ -199,3 +199,13 @@ export async function getCostCenters(companyId: string): Promise<CostCenter[]> {
   if (error) throw error
   return data as CostCenter[]
 }
+
+// Busca lançamentos de TODAS as empresas do usuário (RLS garante isolamento por user_id)
+export async function getConsolidatedEntries(): Promise<FinancialEntry[]> {
+  const { data, error } = await supabase
+    .from('financial_entries')
+    .select('*')
+    .order('competence_date', { ascending: false })
+  if (error) throw error
+  return data as FinancialEntry[]
+}
