@@ -10,6 +10,8 @@ import TransacoesPage from './pages/TransacoesPage'
 import ImportarPage from './pages/ImportarPage'
 import RelatoriosPage from './pages/RelatoriosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
+import FinanceExecutivePage from './pages/FinanceExecutivePage'
+import FinancialEntriesPage from './pages/FinancialEntriesPage'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="/login" element={<LoginWithRedirect />} />
           <Route element={<ProtectedRoutes />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/finance" element={<FinanceExecutivePage />} />
+            <Route path="/lancamentos" element={<FinancialEntriesPage />} />
             <Route path="/dre" element={<DrePage />} />
             <Route path="/transacoes" element={<TransacoesPage />} />
             <Route path="/importar" element={<ImportarPage />} />

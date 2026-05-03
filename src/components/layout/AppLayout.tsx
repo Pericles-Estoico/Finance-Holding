@@ -4,19 +4,22 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart3, FileText, List, Upload, Settings,
   LogOut, FlaskConical, FileDown, Menu, X, TrendingUp,
+  LayoutDashboard, Receipt,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCompany } from '../../contexts/CompanyContext'
 import { useSimulation } from '../../contexts/SimulationContext'
 
 const navItems = [
-  { to: '/',              label: 'Dashboard',      icon: BarChart3,  end: true },
-  { to: '/dre',           label: 'DRE',            icon: FileText },
-  { to: '/transacoes',    label: 'Transacoes',     icon: List },
-  { to: '/importar',      label: 'Importar',       icon: Upload },
-  { to: '/fluxo-caixa',   label: 'Fluxo de Caixa', icon: TrendingUp },
-  { to: '/relatorios',    label: 'Relatorios',     icon: FileDown },
-  { to: '/configuracoes', label: 'Configuracoes',  icon: Settings },
+  { to: '/',              label: 'Dashboard',         icon: BarChart3,       end: true },
+  { to: '/finance',       label: 'Finance Executivo', icon: LayoutDashboard },
+  { to: '/lancamentos',   label: 'Lancamentos',       icon: Receipt },
+  { to: '/dre',           label: 'DRE',               icon: FileText },
+  { to: '/transacoes',    label: 'Transacoes',        icon: List },
+  { to: '/importar',      label: 'Importar',          icon: Upload },
+  { to: '/fluxo-caixa',   label: 'Fluxo de Caixa',    icon: TrendingUp },
+  { to: '/relatorios',    label: 'Relatorios',        icon: FileDown },
+  { to: '/configuracoes', label: 'Configuracoes',     icon: Settings },
 ]
 
 function useIsDesktop() {
