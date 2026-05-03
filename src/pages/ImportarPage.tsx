@@ -17,6 +17,10 @@ import {
 } from '../lib/api/driveImport'
 import type { AccountCategory, SaleChannel, PendingClassification } from '../types'
 import type { OcrParsed } from '../lib/api/ocr'
+import { getCorporateChart } from '../features/finance/services/corporateChartApi'
+import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
+import { suggestCorporateAccount } from '../features/finance/services/ocrCorporateMapping'
+import CorporateAccountSelect from '../features/finance/components/CorporateAccountSelect'
 
 const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: 'amazon', label: 'Amazon' },
@@ -85,6 +89,7 @@ export default function ImportarPage() {
   const [pendingForms, setPendingForms] = useState<Record<string, PendingForm>>({})
   const [classifyingId, setClassifyingId] = useState<string | null>(null)
   const [allAccounts, setAllAccounts] = useState<AccountCategory[]>([])
+  const [corporateAccountsV2, setCorporateAccountsV2] = useState<ChartAccountV2[]>([])
   const [pendingExpanded, setPendingExpanded] = useState(true)
 
   const activeCompany = activeCompanyId !== 'consolidated'
@@ -108,6 +113,7 @@ export default function ImportarPage() {
     }).catch(() => {})
     loadPending(activeCompany.id)
     getAccounts(activeCompany.id).then(setAllAccounts).catch(() => {})
+    getCorporateChart(activeCompany.id).then(setCorporateAccountsV2).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id])
 
@@ -152,15 +158,25 @@ export default function ImportarPage() {
       setProcessing('Classificando automaticamente...')
       const parsed: OcrParsed = result.parsed
 
-      const suggested = parsed.suggestedAccountCode
-        ? loaded.find(a => a.code === parsed.suggestedAccountCode)
-        : undefined
+      // Tenta conta corporativa primeiro; fallback para plano legado
+      const corporateV2 = await getCorporateChart(companyId).catch(() => [] as ChartAccountV2[])
+      setCorporateAccountsV2(corporateV2)
+
+      let accountId = ''
+      if (corporateV2.length > 0) {
+        const suggestedV2 = suggestCorporateAccount(rawText || result.rawText, corporateV2)
+        accountId = suggestedV2?.id ?? ''
+      }
+      if (!accountId && parsed.suggestedAccountCode) {
+        const legacy = loaded.find(a => a.code === parsed.suggestedAccountCode)
+        accountId = legacy?.id ?? ''
+      }
 
       setForm({
         description: parsed.supplierName ?? '',
         date: parsed.date ?? new Date().toISOString().split('T')[0],
         amount: parsed.totalCents ? (parsed.totalCents / 100).toFixed(2) : '',
-        account_id: suggested?.id ?? '',
+        account_id: accountId,
         channel: '',
         type: 'despesa',
         company_id: companyId,
@@ -486,13 +502,26 @@ export default function ImportarPage() {
                   <label className="text-xs font-medium text-gray-600 block mb-1">
                     Conta do Plano *
                     {form.account_id && <span className="ml-2 text-blue-500 text-xs">sugerida automaticamente</span>}
+                    {corporateAccountsV2.length > 0 && (
+                      <span className="ml-2 text-emerald-600 text-xs">Plano Corporativo</span>
+                    )}
                   </label>
-                  <select value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!form.company_id}>
-                    <option value="">Selecione a conta...</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                  </select>
+                  {corporateAccountsV2.length > 0 ? (
+                    <CorporateAccountSelect
+                      accounts={corporateAccountsV2}
+                      value={form.account_id}
+                      onChange={(id) => setForm(p => ({ ...p, account_id: id }))}
+                      className="w-full"
+                      disabled={!form.company_id}
+                    />
+                  ) : (
+                    <select value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!form.company_id}>
+                      <option value="">Selecione a conta...</option>
+                      {accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+                    </select>
+                  )}
                 </div>
 
                 {form.driveUrl && (
@@ -671,15 +700,30 @@ export default function ImportarPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Conta do plano *</label>
-                        <select
-                          value={pf.account_id}
-                          onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: e.target.value } }))}
-                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Selecione...</option>
-                          {allAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                        </select>
+                        <label className="text-xs text-gray-500 block mb-1">
+                          Conta do plano *
+                          {corporateAccountsV2.length > 0 && (
+                            <span className="ml-1 text-emerald-600">· Corporativo</span>
+                          )}
+                        </label>
+                        {corporateAccountsV2.length > 0 ? (
+                          <CorporateAccountSelect
+                            accounts={corporateAccountsV2}
+                            value={pf.account_id}
+                            onChange={(id) => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: id } }))}
+                            className="w-full text-xs py-1.5"
+                            placeholder="Selecione..."
+                          />
+                        ) : (
+                          <select
+                            value={pf.account_id}
+                            onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: e.target.value } }))}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Selecione...</option>
+                            {allAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+                          </select>
+                        )}
                       </div>
                     </div>
 

@@ -4,4 +4,5 @@ export interface OcrParsed {
   supplierName: string | null
   supplierCnpj: string | null
   suggestedAccountCode: string | null
+  suggestedCorporateAccountId?: string | null
 }
