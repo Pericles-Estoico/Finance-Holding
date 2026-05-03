@@ -11,6 +11,7 @@ import InvestorKPIsScreen from '../features/finance/components/InvestorKPIsScree
 import ExecutiveSummaryScreen from '../features/finance/components/ExecutiveSummaryScreen'
 import SensitivityScreen from '../features/finance/components/SensitivityScreen'
 import CashFlowProjectionScreen from '../features/finance/components/CashFlowProjectionScreen'
+import BalanceSheetScreen from '../features/finance/components/BalanceSheetScreen'
 import type { DateRange } from '../features/finance/types/finance.types'
 
 function fmt(d: Date): string {
@@ -120,6 +121,18 @@ export default function FinanceExecutivePage() {
         title: 'Projeção 3-5 Anos',
         component: (
           <CashFlowProjectionScreen
+            companyId={companyId}
+            startDate={period.from}
+            endDate={period.to}
+            onPeriodChange={setPeriod}
+          />
+        ),
+      },
+      {
+        id: 'balance-sheet',
+        title: 'Balanço Patrimonial',
+        component: (
+          <BalanceSheetScreen
             companyId={companyId}
             startDate={period.from}
             endDate={period.to}

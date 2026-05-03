@@ -56,7 +56,7 @@ export default function CorporateAccountSelect({
                     disabled={isCalculated}
                     title={isCalculated ? 'Conta calculada — não pode receber lançamentos' : undefined}
                   >
-                    {indent}{account.account_code} {account.name}{isCalculated ? ' (calc.)' : ''}
+                    {indent}{account.account_code} {account.account_name}{isCalculated ? ' (calc.)' : ''}
                   </option>
                 )
               })}

@@ -69,7 +69,7 @@ const PATTERN_TO_ACCOUNT_KEYWORDS: Record<number, string[]> = {
 }
 
 function accountMatchesKeywords(account: ChartAccountV2, keywords: string[]): boolean {
-  const text = `${account.account_code} ${account.name} ${account.description ?? ''}`.toLowerCase()
+  const text = `${account.account_code} ${account.account_name} ${account.description ?? ''}`.toLowerCase()
   return keywords.some((kw) => text.includes(kw.toLowerCase()))
 }
 
