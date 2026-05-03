@@ -40,3 +40,13 @@ export function calcPercent(part: number, total: number): number {
   if (total === 0) return 0
   return new Decimal(part).dividedBy(total).times(100).toDecimalPlaces(2).toNumber()
 }
+
+/** Formata valor decimal (não centavos) para BRL: R$ 1.250,00 */
+export function fmtBRL(value: number): string {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}

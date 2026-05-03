@@ -3,7 +3,7 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart3, FileText, List, Upload, Settings,
-  LogOut, FlaskConical, FileDown, Menu, X, TrendingUp,
+  LogOut, FlaskConical, FileDown, Menu, X,
   LayoutDashboard, Receipt,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -17,7 +17,6 @@ const navItems = [
   { to: '/dre',           label: 'DRE',               icon: FileText },
   { to: '/transacoes',    label: 'Transacoes',        icon: List },
   { to: '/importar',      label: 'Importar',          icon: Upload },
-  { to: '/fluxo-caixa',   label: 'Fluxo de Caixa',    icon: TrendingUp },
   { to: '/relatorios',    label: 'Relatorios',        icon: FileDown },
   { to: '/configuracoes', label: 'Configuracoes',     icon: Settings },
 ]

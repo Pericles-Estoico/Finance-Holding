@@ -1,16 +1,9 @@
+import { fmtBRL } from '../../../lib/currency'
 import type { EbitdaResult, DreResult } from '../types/finance.types'
 
 interface Props {
   ebitda: EbitdaResult
   dre: DreResult
-}
-
-function fmtBRL(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  })
 }
 
 interface BridgeItem {

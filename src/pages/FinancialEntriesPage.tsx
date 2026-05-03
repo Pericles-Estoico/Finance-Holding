@@ -5,6 +5,7 @@ import { useSimulation } from '../contexts/SimulationContext'
 import FinancialEntryForm from '../features/finance/components/FinancialEntryForm'
 import FinancialEntriesTable from '../features/finance/components/FinancialEntriesTable'
 import ChartAccountsManager from '../features/finance/components/ChartAccountsManager'
+import FinancialDataHealthCheck from '../features/finance/components/FinancialDataHealthCheck'
 import {
   getChartAccounts,
   getFinancialEntries,
@@ -309,6 +310,10 @@ export default function FinancialEntriesPage() {
           Plano de Contas
         </button>
       </div>
+
+      {!loading && entries.length > 0 && (
+        <FinancialDataHealthCheck entries={entries} chartAccounts={chartAccounts} />
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">

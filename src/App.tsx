@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CompanyProvider } from './contexts/CompanyContext'
@@ -5,13 +6,14 @@ import { SimulationProvider } from './contexts/SimulationContext'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
-import DrePage from './pages/DrePage'
-import TransacoesPage from './pages/TransacoesPage'
-import ImportarPage from './pages/ImportarPage'
-import RelatoriosPage from './pages/RelatoriosPage'
-import ConfiguracoesPage from './pages/ConfiguracoesPage'
-import FinanceExecutivePage from './pages/FinanceExecutivePage'
-import FinancialEntriesPage from './pages/FinancialEntriesPage'
+
+const DrePage = lazy(() => import('./pages/DrePage'))
+const TransacoesPage = lazy(() => import('./pages/TransacoesPage'))
+const ImportarPage = lazy(() => import('./pages/ImportarPage'))
+const RelatoriosPage = lazy(() => import('./pages/RelatoriosPage'))
+const ConfiguracoesPage = lazy(() => import('./pages/ConfiguracoesPage'))
+const FinanceExecutivePage = lazy(() => import('./pages/FinanceExecutivePage'))
+const FinancialEntriesPage = lazy(() => import('./pages/FinancialEntriesPage'))
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -29,7 +31,13 @@ function ProtectedRoutes() {
   return (
     <CompanyProvider>
       <SimulationProvider>
-        <AppLayout />
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <AppLayout />
+        </Suspense>
       </SimulationProvider>
     </CompanyProvider>
   )

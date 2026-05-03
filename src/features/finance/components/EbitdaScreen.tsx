@@ -12,6 +12,7 @@ import {
   mockFinancialEntries,
 } from '../data/mockFinancialData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import { fmtBRL } from '../../../lib/currency'
 import type {
   ChartAccount,
   FinancialEntry,
@@ -23,14 +24,6 @@ interface Props {
   startDate: string
   endDate: string
   onPeriodChange?: (range: DateRange) => void
-}
-
-function fmtBRL(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  })
 }
 
 function fmtPct(value: number): string {

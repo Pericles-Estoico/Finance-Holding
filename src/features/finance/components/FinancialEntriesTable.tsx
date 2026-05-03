@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Edit2, CheckCircle, XCircle } from 'lucide-react'
+import { fmtBRL } from '../../../lib/currency'
 import type { FinancialEntry, ChartAccount, EntryType, EntryStatus } from '../types/finance.types'
 
 interface Props {
@@ -29,14 +30,6 @@ const statusColors: Record<EntryStatus, string> = {
   overdue: 'bg-red-100 text-red-700',
   cancelled: 'bg-gray-100 text-gray-400 line-through',
   partially_paid: 'bg-amber-100 text-amber-700',
-}
-
-function fmtBRL(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  })
 }
 
 function fmtDate(dateStr: string): string {

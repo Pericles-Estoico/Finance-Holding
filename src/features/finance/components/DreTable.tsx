@@ -1,16 +1,9 @@
+import { fmtBRL } from '../../../lib/currency'
 import type { DreResult, FinancialEntry } from '../types/finance.types'
 
 interface Props {
   dre: DreResult
   onDrillDown: (group: string, entries: FinancialEntry[]) => void
-}
-
-function fmtBRL(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  })
 }
 
 function fmtPct(value: number): string {

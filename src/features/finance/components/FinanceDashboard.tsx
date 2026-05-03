@@ -29,6 +29,7 @@ import {
   mockBankAccounts,
 } from '../data/mockFinancialData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import { fmtBRL } from '../../../lib/currency'
 import type {
   ChartAccount,
   FinancialEntry,
@@ -41,14 +42,6 @@ interface Props {
   startDate: string
   endDate: string
   onPeriodChange?: (range: DateRange) => void
-}
-
-function fmtBRL(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  })
 }
 
 function fmtPct(value: number): string {
@@ -215,7 +208,7 @@ export default function FinanceDashboard({
   )
 
   const balance7d = cashFlow.projectedBalance7d
-  const balance15d = cashFlow.rows[14]?.closingBalance ?? balance7d
+  const balance15d = cashFlow.projectedBalance15d
   const balance30d = cashFlow.projectedBalance30d
 
   if (loading) {

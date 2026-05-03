@@ -178,6 +178,7 @@ export interface CashFlowProjection {
   rows: CashFlowDayRow[]
   initialBalance: number
   projectedBalance7d: number
+  projectedBalance15d: number
   projectedBalance30d: number
   projectedBalance60d: number
   projectedBalance90d: number

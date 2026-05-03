@@ -254,6 +254,7 @@ export function calculateCashFlowProjection(
     rows,
     initialBalance: initialCashBalance,
     projectedBalance7d: getBalanceAtDay(7),
+    projectedBalance15d: getBalanceAtDay(15),
     projectedBalance30d: getBalanceAtDay(30),
     projectedBalance60d: getBalanceAtDay(60),
     projectedBalance90d: getBalanceAtDay(90),
