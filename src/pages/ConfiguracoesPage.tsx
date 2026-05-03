@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import {
   Building2, Plus, Pencil, Trash2, ChevronDown, ChevronRight,
-  User, BookOpen, Shield, CheckCircle2,
+  User, BookOpen, Shield, CheckCircle2, BarChart3,
 } from 'lucide-react'
+import CorporateChartManager from '../features/finance/components/CorporateChartManager'
 import { useAuth } from '../contexts/AuthContext'
 import { useCompany } from '../contexts/CompanyContext'
 import { getCompanies, createCompany, updateCompany, deleteCompany } from '../lib/api/companies'
@@ -12,7 +13,7 @@ import type { Company, AccountCategory, TaxRegime } from '../types'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-type Tab = 'empresas' | 'contas' | 'perfil'
+type Tab = 'empresas' | 'contas' | 'corporativo' | 'perfil'
 
 const ACCOUNT_TYPE_LABEL: Record<AccountCategory['type'], string> = {
   ativo: 'Ativo', passivo: 'Passivo', receita: 'Receita',
@@ -111,9 +112,10 @@ export default function ConfiguracoesPage() {
     .filter(g => g.items.length > 0)
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'empresas', label: 'Empresas',      icon: <Building2 className="w-4 h-4" /> },
-    { key: 'contas',   label: 'Plano de Contas', icon: <BookOpen className="w-4 h-4" /> },
-    { key: 'perfil',   label: 'Perfil',         icon: <User className="w-4 h-4" /> },
+    { key: 'empresas',    label: 'Empresas',         icon: <Building2 className="w-4 h-4" /> },
+    { key: 'contas',      label: 'Plano Básico',      icon: <BookOpen className="w-4 h-4" /> },
+    { key: 'corporativo', label: 'Plano Corporativo', icon: <BarChart3 className="w-4 h-4" /> },
+    { key: 'perfil',      label: 'Perfil',            icon: <User className="w-4 h-4" /> },
   ]
 
   return (
@@ -266,6 +268,20 @@ export default function ConfiguracoesPage() {
                 ))
               )}
             </div>
+          )}
+        </section>
+      )}
+
+      {/* ─── TAB: PLANO CORPORATIVO ─── */}
+      {tab === 'corporativo' && (
+        <section className="space-y-4">
+          {!selectedCompany ? (
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+              <BarChart3 className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-slate-400 text-sm">Selecione uma empresa na aba Empresas para gerenciar o plano corporativo.</p>
+            </div>
+          ) : (
+            <CorporateChartManager companyId={selectedCompany.id} />
           )}
         </section>
       )}

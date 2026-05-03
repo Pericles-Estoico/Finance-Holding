@@ -30,6 +30,7 @@ import {
 } from '../data/mockFinancialData'
 import { useSimulation } from '../../../contexts/SimulationContext'
 import { fmtBRL } from '../../../lib/currency'
+import AccountingEquationAlert from './AccountingEquationAlert'
 import type {
   ChartAccount,
   FinancialEntry,
@@ -235,6 +236,10 @@ export default function FinanceDashboard({
           />
         )}
       </div>
+
+      {!isSimulation && companyId !== 'consolidated' && (
+        <AccountingEquationAlert companyId={companyId} entries={entries} />
+      )}
 
       {error && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">

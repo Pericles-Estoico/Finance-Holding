@@ -8,6 +8,7 @@ import type {
   CashFlowDayRow,
   AgingBucket,
 } from '../types/finance.types'
+import type { IFRSDREResult } from './ifrsEngine'
 
 function isInRange(date: string, from: string, to: string): boolean {
   return date >= from && date <= to
@@ -263,6 +264,39 @@ export function calculateCashFlowProjection(
     negativeCashDays,
     totalProjectedInflow,
     totalProjectedOutflow,
+  }
+}
+
+// Adapta IFRSDREResult (Decimal) → DreResult (number) para componentes legados
+export function ifrsDREToLegacy(
+  ifrs: IFRSDREResult,
+  entriesByGroup: Record<string, FinancialEntry[]> = {}
+): DreResult {
+  const resultadoFinanceiro = ifrs.receitasNaoOperacionais
+    .minus(ifrs.despesasNaoOperacionais)
+    .toNumber()
+
+  return {
+    receitaBruta: ifrs.receitaBruta.toNumber(),
+    deducoes: ifrs.deducoes.toNumber(),
+    receitaLiquida: ifrs.receitaLiquida.toNumber(),
+    cmv: ifrs.cpv.toNumber(),
+    lucroBruto: ifrs.lucroBruto.toNumber(),
+    despesasComerciais: ifrs.despesasComerciais.toNumber(),
+    despesasAdministrativas: ifrs.despesasAdministrativas.toNumber(),
+    despesasOperacionais: ifrs.despesasFinanceiras.toNumber(),
+    totalDespesasOperacionais: ifrs.totalDespesasOperacionais.toNumber(),
+    ebitda: ifrs.ebitda.toNumber(),
+    depreciacao: ifrs.depreciacao.plus(ifrs.amortizacao).toNumber(),
+    ebit: ifrs.ebit.toNumber(),
+    resultadoFinanceiro,
+    impostos: ifrs.totalImpostos.toNumber(),
+    lucroLiquido: ifrs.lucroLiquido.toNumber(),
+    margemBruta: ifrs.margemBruta.toNumber(),
+    margemEbitda: ifrs.margemEBITDA.toNumber(),
+    margemLiquida: ifrs.margemLiquida.toNumber(),
+    byGroup: {},
+    entriesByGroup,
   }
 }
 

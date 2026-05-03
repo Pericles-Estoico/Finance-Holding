@@ -3,8 +3,11 @@ import FinancialKpiCard from './FinancialKpiCard'
 import FinancialPeriodFilter from './FinancialPeriodFilter'
 import DreTable from './DreTable'
 import DrillDownModal from './DrillDownModal'
-import { calculateDRE } from '../services/financeCalculations'
+import { calculateDRE, ifrsDREToLegacy } from '../services/financeCalculations'
+import { calculateIFRSDRE } from '../services/ifrsEngine'
 import { getChartAccounts, getFinancialEntries } from '../services/financeApi'
+import { getCorporateChart } from '../services/corporateChartApi'
+import type { ChartAccountV2 } from '../services/corporateChartApi'
 import {
   mockChartAccounts,
   mockFinancialEntries,
@@ -57,6 +60,7 @@ export default function DreScreen({
 
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,9 +86,10 @@ export default function DreScreen({
       }
 
       try {
-        const [accountsData, entriesData] = await Promise.all([
+        const [accountsData, entriesData, accountsV2Data] = await Promise.all([
           getChartAccounts(companyId),
           getFinancialEntries(companyId),
+          getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
         ])
         if (cancelled) return
         if (entriesData.length === 0 || accountsData.length === 0) {
@@ -93,6 +98,7 @@ export default function DreScreen({
         } else {
           setEntries(entriesData)
           setChartAccounts(accountsData)
+          setChartAccountsV2(accountsV2Data)
         }
       } catch (err) {
         if (cancelled) return
@@ -120,14 +126,22 @@ export default function DreScreen({
     [startDate, endDate]
   )
 
+  const useIFRS = chartAccountsV2.length > 0
+
   const dre = useMemo(
-    () => calculateDRE(entries, chartAccounts, period),
-    [entries, chartAccounts, period]
+    () =>
+      useIFRS
+        ? ifrsDREToLegacy(calculateIFRSDRE(entries, chartAccountsV2, period))
+        : calculateDRE(entries, chartAccounts, period),
+    [entries, chartAccounts, chartAccountsV2, period, useIFRS]
   )
 
   const prevDre = useMemo(
-    () => calculateDRE(entries, chartAccounts, previousPeriod),
-    [entries, chartAccounts, previousPeriod]
+    () =>
+      useIFRS
+        ? ifrsDREToLegacy(calculateIFRSDRE(entries, chartAccountsV2, previousPeriod))
+        : calculateDRE(entries, chartAccounts, previousPeriod),
+    [entries, chartAccounts, chartAccountsV2, previousPeriod, useIFRS]
   )
 
   function handleDrillDown(group: string, list: FinancialEntry[]) {
