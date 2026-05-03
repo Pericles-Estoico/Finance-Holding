@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Supabase CLI temp files (gerados por `supabase link`)
+supabase/.temp/
