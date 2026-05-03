@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import FinancialKpiCard from './FinancialKpiCard'
 import FinancialPeriodFilter from './FinancialPeriodFilter'
 import CashFlowProjectionChart from './CashFlowProjectionChart'
-import { calculateCashFlowProjection } from '../services/financeCalculations'
+import { calculateCashFlowProjection, calculateAgingBuckets } from '../services/financeCalculations'
 import {
   getChartAccounts,
   getFinancialEntries,
@@ -154,6 +154,13 @@ export default function CashFlowScreen({
     [entries]
   )
 
+  const agingBuckets = useMemo(
+    () => calculateAgingBuckets(entries, today),
+    [entries, today]
+  )
+
+  const hasOverdue = agingBuckets.some((b) => b.receivable > 0 || b.payable > 0)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -244,6 +251,73 @@ export default function CashFlowScreen({
         </div>
         <CashFlowProjectionChart projection={projection} />
       </div>
+
+      {hasOverdue && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-1">Inadimplência por Faixa de Atraso</h3>
+          <p className="text-xs text-gray-500 mb-4">Contas vencidas e não liquidadas, agrupadas por tempo de atraso</p>
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Faixa</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">A Receber</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Qtd.</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">A Pagar</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Qtd.</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Total Vencido</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {agingBuckets.map((bucket) => {
+                  const total = bucket.receivable + bucket.payable
+                  if (total === 0) return null
+                  return (
+                    <tr key={bucket.label} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-medium text-gray-700">{bucket.label}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-emerald-700">
+                        {bucket.receivable > 0 ? fmtBRL(bucket.receivable) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-center text-gray-500 text-xs">
+                        {bucket.receivableCount > 0 ? bucket.receivableCount : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-red-700">
+                        {bucket.payable > 0 ? fmtBRL(bucket.payable) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-center text-gray-500 text-xs">
+                        {bucket.payableCount > 0 ? bucket.payableCount : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-semibold text-gray-900">
+                        {fmtBRL(total)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td className="px-4 py-2.5 font-semibold text-gray-700">Total</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-emerald-700">
+                    {fmtBRL(agingBuckets.reduce((s, b) => s + b.receivable, 0))}
+                  </td>
+                  <td className="px-4 py-2.5 text-center font-semibold text-gray-700">
+                    {agingBuckets.reduce((s, b) => s + b.receivableCount, 0)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-red-700">
+                    {fmtBRL(agingBuckets.reduce((s, b) => s + b.payable, 0))}
+                  </td>
+                  <td className="px-4 py-2.5 text-center font-semibold text-gray-700">
+                    {agingBuckets.reduce((s, b) => s + b.payableCount, 0)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-gray-900">
+                    {fmtBRL(agingBuckets.reduce((s, b) => s + b.receivable + b.payable, 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="font-semibold text-gray-900 mb-4">Detalhamento Diario</h3>

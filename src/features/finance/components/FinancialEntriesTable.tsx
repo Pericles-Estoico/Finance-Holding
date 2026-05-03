@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { Edit2, CheckCircle, XCircle } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Edit2, CheckCircle, XCircle, Download, Copy } from 'lucide-react'
 import { fmtBRL } from '../../../lib/currency'
 import type { FinancialEntry, ChartAccount, EntryType, EntryStatus } from '../types/finance.types'
+
+const CHANNELS = ['Shopee', 'Mercado Livre', 'Shein', 'Loja Própria', 'Atacado', 'Outros']
 
 interface Props {
   entries: FinancialEntry[]
@@ -9,6 +11,7 @@ interface Props {
   onEdit: (entry: FinancialEntry) => void
   onMarkPaid: (entry: FinancialEntry) => void
   onCancel: (entry: FinancialEntry) => void
+  onDuplicate?: (entry: FinancialEntry) => void
   filterType?: EntryType | 'all'
 }
 
@@ -36,18 +39,55 @@ function fmtDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
+function exportCSV(rows: FinancialEntry[], accounts: ChartAccount[]) {
+  const getAccName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
+  const header = ['Tipo', 'Descrição', 'Competência', 'Vencimento', 'Pagamento', 'Conta', 'Canal', 'Valor', 'Status', 'Contraparte', 'Documento']
+  const body = rows.map((e) => [
+    e.type === 'receivable' ? 'A Receber' : 'A Pagar',
+    e.description,
+    e.competence_date,
+    e.due_date,
+    e.paid_or_received_date ?? '',
+    getAccName(e.chart_account_id),
+    e.channel ?? '',
+    e.amount.toFixed(2).replace('.', ','),
+    statusLabels[e.status],
+    e.counterparty ?? '',
+    e.document_number ?? '',
+  ])
+  const csv = [header, ...body].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `lancamentos_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function FinancialEntriesTable({
   entries,
   chartAccounts,
   onEdit,
   onMarkPaid,
   onCancel,
+  onDuplicate,
   filterType = 'all',
 }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [channelFilter, setChannelFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+
+  const availableChannels = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of entries) {
+      if (e.channel) set.add(e.channel)
+    }
+    const custom = Array.from(set).filter((c) => !CHANNELS.includes(c))
+    return [...CHANNELS, ...custom]
+  }, [entries])
 
   function getAccountName(id: string) {
     return chartAccounts.find((a) => a.id === id)?.name ?? '-'
@@ -56,6 +96,7 @@ export default function FinancialEntriesTable({
   const filtered = entries.filter((e) => {
     if (filterType !== 'all' && e.type !== filterType) return false
     if (statusFilter !== 'all' && e.status !== statusFilter) return false
+    if (channelFilter !== 'all' && e.channel !== channelFilter) return false
     if (search && !e.description.toLowerCase().includes(search.toLowerCase())) return false
     if (fromDate && e.competence_date < fromDate) return false
     if (toDate && e.competence_date > toDate) return false
@@ -85,6 +126,16 @@ export default function FinancialEntriesTable({
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        <select
+          value={channelFilter}
+          onChange={(e) => setChannelFilter(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Todos canais</option>
+          {availableChannels.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
         <input
           type="date"
           value={fromDate}
@@ -98,6 +149,14 @@ export default function FinancialEntriesTable({
           onChange={(e) => setToDate(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <button
+          onClick={() => exportCSV(filtered, chartAccounts)}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          title="Exportar CSV"
+        >
+          <Download className="w-3.5 h-3.5" />
+          CSV
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -108,6 +167,7 @@ export default function FinancialEntriesTable({
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Descrição</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Conta</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Canal</th>
               <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Valor</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
               <th className="px-4 py-3" />
@@ -116,7 +176,7 @@ export default function FinancialEntriesTable({
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
                   Nenhum lançamento encontrado.
                 </td>
               </tr>
@@ -127,6 +187,7 @@ export default function FinancialEntriesTable({
                 <td className="px-4 py-3 text-gray-600">{fmtDate(entry.due_date)}</td>
                 <td className="px-4 py-3 font-medium text-gray-800">{entry.description}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{getAccountName(entry.chart_account_id)}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs">{entry.channel ?? '—'}</td>
                 <td className={`px-4 py-3 text-right font-semibold font-mono ${entry.type === 'receivable' ? 'text-emerald-600' : 'text-red-600'}`}>
                   {entry.type === 'payable' ? '-' : '+'}{fmtBRL(entry.amount)}
                 </td>
@@ -144,6 +205,15 @@ export default function FinancialEntriesTable({
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
+                    {onDuplicate && (
+                      <button
+                        onClick={() => onDuplicate(entry)}
+                        className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                        title="Duplicar"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {(entry.status === 'open' || entry.status === 'overdue') && (
                       <button
                         onClick={() => onMarkPaid(entry)}
@@ -184,6 +254,9 @@ export default function FinancialEntriesTable({
           <span className={`font-bold ${totalReceivable - totalPayable >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
             {fmtBRL(totalReceivable - totalPayable)}
           </span>
+        </div>
+        <div className="ml-auto text-xs text-gray-400 self-center">
+          {filtered.length} lançamento{filtered.length !== 1 ? 's' : ''}
         </div>
       </div>
     </div>

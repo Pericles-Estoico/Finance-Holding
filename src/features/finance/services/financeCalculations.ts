@@ -6,6 +6,7 @@ import type {
   EbitdaResult,
   CashFlowProjection,
   CashFlowDayRow,
+  AgingBucket,
 } from '../types/finance.types'
 
 function isInRange(date: string, from: string, to: string): boolean {
@@ -263,6 +264,40 @@ export function calculateCashFlowProjection(
     totalProjectedInflow,
     totalProjectedOutflow,
   }
+}
+
+export function calculateAgingBuckets(entries: FinancialEntry[], today: string): AgingBucket[] {
+  const buckets: AgingBucket[] = [
+    { label: '1–7 dias', minDays: 1, maxDays: 7, receivable: 0, payable: 0, receivableCount: 0, payableCount: 0 },
+    { label: '8–15 dias', minDays: 8, maxDays: 15, receivable: 0, payable: 0, receivableCount: 0, payableCount: 0 },
+    { label: '16–30 dias', minDays: 16, maxDays: 30, receivable: 0, payable: 0, receivableCount: 0, payableCount: 0 },
+    { label: '31–60 dias', minDays: 31, maxDays: 60, receivable: 0, payable: 0, receivableCount: 0, payableCount: 0 },
+    { label: '> 60 dias', minDays: 61, maxDays: Infinity, receivable: 0, payable: 0, receivableCount: 0, payableCount: 0 },
+  ]
+
+  const todayMs = new Date(today + 'T00:00:00').getTime()
+
+  for (const entry of entries) {
+    if (entry.status === 'cancelled' || entry.status === 'paid' || entry.status === 'received') continue
+    if (!entry.due_date) continue
+    const dueMs = new Date(entry.due_date + 'T00:00:00').getTime()
+    if (dueMs >= todayMs) continue
+    const daysOverdue = Math.floor((todayMs - dueMs) / 86400000)
+    for (const bucket of buckets) {
+      if (daysOverdue >= bucket.minDays && daysOverdue <= bucket.maxDays) {
+        if (entry.type === 'receivable') {
+          bucket.receivable += entry.amount
+          bucket.receivableCount++
+        } else {
+          bucket.payable += entry.amount
+          bucket.payableCount++
+        }
+        break
+      }
+    }
+  }
+
+  return buckets
 }
 
 export function getMonthlyRevenueTrend(

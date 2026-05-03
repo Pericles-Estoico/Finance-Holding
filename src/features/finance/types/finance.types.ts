@@ -189,3 +189,13 @@ export interface CashFlowProjection {
 }
 
 export type FinancialEntryFormData = Omit<FinancialEntry, 'id' | 'created_at' | 'updated_at' | 'created_by'>
+
+export interface AgingBucket {
+  label: string
+  minDays: number
+  maxDays: number
+  receivable: number
+  payable: number
+  receivableCount: number
+  payableCount: number
+}

@@ -194,6 +194,20 @@ export default function FinancialEntriesPage() {
     }
   }
 
+  function handleDuplicate(entry: FinancialEntry) {
+    const { id, created_at, updated_at, paid_or_received_date, ...rest } = entry
+    void id; void created_at; void updated_at
+    setEditingEntry({
+      ...rest,
+      id: '',
+      created_at: '',
+      updated_at: '',
+      paid_or_received_date: null,
+      status: 'open',
+    } as FinancialEntry)
+    setFormOpen(true)
+  }
+
   async function handleCancelEntry(entry: FinancialEntry) {
     if (isSimulation || !companyId) {
       setEntries((prev) =>
@@ -350,6 +364,7 @@ export default function FinancialEntriesPage() {
             onEdit={openEdit}
             onMarkPaid={handleMarkPaid}
             onCancel={handleCancelEntry}
+            onDuplicate={handleDuplicate}
             filterType={filterType}
           />
         </div>
