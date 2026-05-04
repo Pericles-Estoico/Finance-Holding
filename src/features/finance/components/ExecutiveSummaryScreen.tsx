@@ -4,8 +4,9 @@ import { calculateIFRSDRE, calcIFRSKPIs } from '../services/ifrsEngine'
 import { ifrsDREToLegacy } from '../services/financeCalculations'
 import { getCorporateChart } from '../services/corporateChartApi'
 import { getFinancialEntries } from '../services/financeApi'
-import { mockFinancialEntries } from '../data/mockFinancialData'
+import { simulationFinancialEntries } from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import { useCompany } from '../../../contexts/CompanyContext'
 import { exportExecutiveSummaryPDF } from '../services/pdfExport'
 import FinancialPeriodFilter from './FinancialPeriodFilter'
@@ -73,13 +74,19 @@ export default function ExecutiveSummaryScreen({
   const [v2Accounts, setV2Accounts] = useState<ChartAccountV2[]>([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
-      if (isSimulation || !companyId || companyId === 'consolidated') {
-        if (!cancelled) { setEntries(mockFinancialEntries); setLoading(false) }
+      setError(null)
+      if (isSimulation) {
+        if (!cancelled) { setEntries(simulationFinancialEntries); setLoading(false) }
+        return
+      }
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) { setEntries([]); setV2Accounts([]); setLoading(false) }
         return
       }
       try {
@@ -88,11 +95,11 @@ export default function ExecutiveSummaryScreen({
           getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
         ])
         if (!cancelled) {
-          setEntries(entriesData.length ? entriesData : mockFinancialEntries)
+          setEntries(entriesData)
           setV2Accounts(accountsData)
         }
-      } catch {
-        if (!cancelled) setEntries(mockFinancialEntries)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -174,26 +181,44 @@ export default function ExecutiveSummaryScreen({
 
   const hasData = !!dre
 
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Executive Summary</h1>
+        <p className="text-sm text-gray-500">Relatório Nível 1 — pronto para apresentar a investidores</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {onPeriodChange && <FinancialPeriodFilter value={period} onChange={onPeriodChange} />}
+        <button
+          onClick={handleExport}
+          disabled={!hasData || exporting}
+          className="flex items-center gap-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? 'Gerando…' : 'Exportar PDF'}
+        </button>
+      </div>
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="error" errorDetail={error} /></div>
+    }
+    if (!companyId) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-company" /></div>
+    }
+    if (companyId === 'consolidated') {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="consolidated-blocked" /></div>
+    }
+    if (entries.length === 0) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-data" /></div>
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Executive Summary</h1>
-          <p className="text-sm text-gray-500">Relatório Nível 1 — pronto para apresentar a investidores</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {onPeriodChange && <FinancialPeriodFilter value={period} onChange={onPeriodChange} />}
-          <button
-            onClick={handleExport}
-            disabled={!hasData || exporting}
-            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            {exporting ? 'Gerando…' : 'Exportar PDF'}
-          </button>
-        </div>
-      </div>
+      {headerBlock}
 
       {!hasData ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-100">

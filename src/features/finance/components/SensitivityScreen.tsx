@@ -5,8 +5,9 @@ import { calculateIFRSDRE } from '../services/ifrsEngine'
 import { getChartAccounts, getFinancialEntries } from '../services/financeApi'
 import { getCorporateChart } from '../services/corporateChartApi'
 import type { ChartAccountV2 } from '../services/corporateChartApi'
-import { mockChartAccounts, mockFinancialEntries } from '../data/mockFinancialData'
+import { simulationChartAccounts, simulationFinancialEntries } from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import { buildScenarios } from '../services/sensitivityAnalysis'
 import type { DREBase } from '../services/sensitivityAnalysis'
 import { fmtBRL } from '../../../lib/currency'
@@ -118,6 +119,7 @@ export default function SensitivityScreen({
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [receitaVar, setReceitaVar] = useState(20)
   const [custosVar, setCustosVar] = useState(10)
@@ -128,10 +130,20 @@ export default function SensitivityScreen({
     let cancelled = false
     async function load() {
       setLoading(true)
-      if (isSimulation || !companyId || companyId === 'consolidated') {
+      setError(null)
+      if (isSimulation) {
         if (!cancelled) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
+          setEntries(simulationFinancialEntries)
+          setChartAccounts(simulationChartAccounts)
+          setLoading(false)
+        }
+        return
+      }
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) {
+          setEntries([])
+          setChartAccounts([])
+          setChartAccountsV2([])
           setLoading(false)
         }
         return
@@ -143,19 +155,11 @@ export default function SensitivityScreen({
           getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
         ])
         if (cancelled) return
-        if (entriesData.length === 0 || accountsData.length === 0) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
-        } else {
-          setEntries(entriesData)
-          setChartAccounts(accountsData)
-          setChartAccountsV2(accountsV2Data)
-        }
-      } catch {
-        if (!cancelled) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
-        }
+        setEntries(entriesData)
+        setChartAccounts(accountsData)
+        setChartAccountsV2(accountsV2Data)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -207,17 +211,36 @@ export default function SensitivityScreen({
     )
   }
 
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Análise de Sensibilidade</h1>
+        <p className="text-sm text-gray-500">Cenários Pessimista / Base / Otimista</p>
+      </div>
+      {onPeriodChange && (
+        <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
+      )}
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="error" errorDetail={error} /></div>
+    }
+    if (!companyId) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-company" /></div>
+    }
+    if (companyId === 'consolidated') {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="consolidated-blocked" /></div>
+    }
+    if (entries.length === 0) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-data" /></div>
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Análise de Sensibilidade</h1>
-          <p className="text-sm text-gray-500">Cenários Pessimista / Base / Otimista</p>
-        </div>
-        {onPeriodChange && (
-          <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
-        )}
-      </div>
+      {headerBlock}
 
       {/* Sliders de ajuste */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">

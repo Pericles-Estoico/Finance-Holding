@@ -8,10 +8,11 @@ import {
 } from '../services/financeCalculations'
 import { getChartAccounts, getFinancialEntries } from '../services/financeApi'
 import {
-  mockChartAccounts,
-  mockFinancialEntries,
-} from '../data/mockFinancialData'
+  simulationChartAccounts,
+  simulationFinancialEntries,
+} from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import { fmtBRL } from '../../../lib/currency'
 import type {
   ChartAccount,
@@ -63,10 +64,19 @@ export default function EbitdaScreen({
       setLoading(true)
       setError(null)
 
-      if (isSimulation || !companyId || companyId === 'consolidated') {
+      if (isSimulation) {
         if (!cancelled) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
+          setEntries(simulationFinancialEntries)
+          setChartAccounts(simulationChartAccounts)
+          setLoading(false)
+        }
+        return
+      }
+
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) {
+          setEntries([])
+          setChartAccounts([])
           setLoading(false)
         }
         return
@@ -78,18 +88,11 @@ export default function EbitdaScreen({
           getFinancialEntries(companyId),
         ])
         if (cancelled) return
-        if (entriesData.length === 0 || accountsData.length === 0) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
-        } else {
-          setEntries(entriesData)
-          setChartAccounts(accountsData)
-        }
+        setEntries(entriesData)
+        setChartAccounts(accountsData)
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
-        setEntries(mockFinancialEntries)
-        setChartAccounts(mockChartAccounts)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -177,25 +180,38 @@ export default function EbitdaScreen({
     blue: 'text-blue-700',
   }
 
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">EBITDA</h1>
+        <p className="text-sm text-gray-500">
+          Lucro antes de juros, impostos, depreciacao e amortizacao
+        </p>
+      </div>
+      {onPeriodChange && (
+        <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
+      )}
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="error" errorDetail={error} /></div>
+    }
+    if (!companyId) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-company" /></div>
+    }
+    if (companyId === 'consolidated') {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="consolidated-blocked" /></div>
+    }
+    if (entries.length === 0) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-data" /></div>
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">EBITDA</h1>
-          <p className="text-sm text-gray-500">
-            Lucro antes de juros, impostos, depreciacao e amortizacao
-          </p>
-        </div>
-        {onPeriodChange && (
-          <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
-        )}
-      </div>
-
-      {error && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-          {error} - exibindo dados de demonstracao.
-        </div>
-      )}
+      {headerBlock}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <FinancialKpiCard

@@ -4,8 +4,9 @@ import FinancialPeriodFilter from './FinancialPeriodFilter'
 import { getFinancialEntries } from '../services/financeApi'
 import { getCorporateChart } from '../services/corporateChartApi'
 import type { ChartAccountV2 } from '../services/corporateChartApi'
-import { mockFinancialEntries } from '../data/mockFinancialData'
+import { simulationFinancialEntries } from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import { calculateBalanceSheet, calculateLiquidity } from '../services/balanceSheetCalculations'
 import type { BPLine } from '../services/balanceSheetCalculations'
 import { fmtBRL } from '../../../lib/currency'
@@ -109,16 +110,26 @@ export default function BalanceSheetScreen({
   const [accounts, setAccounts] = useState<ChartAccountV2[]>([])
   const [loading, setLoading] = useState(true)
   const [noData, setNoData] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
-      if (isSimulation || !companyId || companyId === 'consolidated') {
+      setError(null)
+      setNoData(false)
+      if (isSimulation) {
         if (!cancelled) {
-          setEntries(mockFinancialEntries)
+          setEntries(simulationFinancialEntries)
           setLoading(false)
-          setNoData(false)
+        }
+        return
+      }
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) {
+          setEntries([])
+          setAccounts([])
+          setLoading(false)
         }
         return
       }
@@ -130,17 +141,14 @@ export default function BalanceSheetScreen({
         if (cancelled) return
         if (accountsData.length === 0) {
           setNoData(true)
-          setEntries(mockFinancialEntries)
+          setEntries([])
+          setAccounts([])
         } else {
           setEntries(entriesData)
           setAccounts(accountsData)
-          setNoData(false)
         }
-      } catch {
-        if (!cancelled) {
-          setEntries(mockFinancialEntries)
-          setNoData(true)
-        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -183,17 +191,33 @@ export default function BalanceSheetScreen({
     )
   }
 
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Balanço Patrimonial</h1>
+        <p className="text-sm text-gray-500">IFRS — Ativo = Passivo + Patrimônio Líquido</p>
+      </div>
+      {onPeriodChange && (
+        <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
+      )}
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="error" errorDetail={error} /></div>
+    }
+    if (!companyId) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-company" /></div>
+    }
+    if (companyId === 'consolidated') {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="consolidated-blocked" /></div>
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Balanço Patrimonial</h1>
-          <p className="text-sm text-gray-500">IFRS — Ativo = Passivo + Patrimônio Líquido</p>
-        </div>
-        {onPeriodChange && (
-          <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
-        )}
-      </div>
+      {headerBlock}
 
       {noData && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">

@@ -19,11 +19,12 @@ import {
   seedDefaultChartAccounts,
 } from '../features/finance/services/financeApi'
 import {
-  mockChartAccounts,
-  mockFinancialEntries,
-  mockBankAccounts,
-  mockCostCenters,
-} from '../features/finance/data/mockFinancialData'
+  simulationChartAccounts,
+  simulationFinancialEntries,
+  simulationBankAccounts,
+  simulationCostCenters,
+  SIMULATION_COMPANY_ID,
+} from '../features/finance/data/simulationData'
 import type {
   ChartAccount,
   FinancialEntry,
@@ -59,11 +60,20 @@ export default function FinancialEntriesPage() {
     setLoading(true)
     setError(null)
 
-    if (isSimulation || !companyId) {
-      setEntries(mockFinancialEntries)
-      setChartAccounts(mockChartAccounts)
-      setBankAccounts(mockBankAccounts)
-      setCostCenters(mockCostCenters)
+    if (isSimulation) {
+      setEntries(simulationFinancialEntries)
+      setChartAccounts(simulationChartAccounts)
+      setBankAccounts(simulationBankAccounts)
+      setCostCenters(simulationCostCenters)
+      setLoading(false)
+      return
+    }
+
+    if (!companyId) {
+      setEntries([])
+      setChartAccounts([])
+      setBankAccounts([])
+      setCostCenters([])
       setLoading(false)
       return
     }
@@ -75,16 +85,12 @@ export default function FinancialEntriesPage() {
         getBankAccounts(companyId),
         getCostCenters(companyId),
       ])
-      setChartAccounts(accountsData.length > 0 ? accountsData : mockChartAccounts)
+      setChartAccounts(accountsData)
       setEntries(entriesData)
-      setBankAccounts(banksData.length > 0 ? banksData : mockBankAccounts)
-      setCostCenters(ccData.length > 0 ? ccData : mockCostCenters)
+      setBankAccounts(banksData)
+      setCostCenters(ccData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
-      setEntries(mockFinancialEntries)
-      setChartAccounts(mockChartAccounts)
-      setBankAccounts(mockBankAccounts)
-      setCostCenters(mockCostCenters)
     } finally {
       setLoading(false)
     }
@@ -230,7 +236,7 @@ export default function FinancialEntriesPage() {
 
   async function handleSeedAccounts() {
     if (isSimulation || !companyId) {
-      setChartAccounts(mockChartAccounts)
+      setChartAccounts(simulationChartAccounts)
       return
     }
     setSeeding(true)
@@ -391,7 +397,7 @@ export default function FinancialEntriesPage() {
         chartAccounts={chartAccounts}
         bankAccounts={bankAccounts}
         costCenters={costCenters}
-        companyId={companyId || 'mock-company-id'}
+        companyId={companyId || SIMULATION_COMPANY_ID}
         initial={editingEntry ?? undefined}
       />
     </div>

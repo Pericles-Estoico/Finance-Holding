@@ -1,0 +1,165 @@
+// Dados de DEMONSTRAÇÃO usados exclusivamente pelo Modo Simulação
+// (ativado via SimulationContext / toggleSimulation).
+//
+// IMPORTANTE: nunca importar este arquivo como fallback de dados reais.
+// Em produção, telas devem renderizar empty-state ou erro quando o
+// Supabase falhar/retornar vazio — NÃO cair silenciosamente para cá.
+import type { ChartAccount, FinancialEntry, BankAccount, CostCenter } from '../types/finance.types'
+
+export const SIMULATION_COMPANY_ID = 'simulation-company-id'
+
+export const simulationBankAccounts: BankAccount[] = [
+  {
+    id: 'simulation-bank-001',
+    company_id: SIMULATION_COMPANY_ID,
+    name: 'Conta Principal - Bradesco',
+    bank_name: 'Bradesco',
+    initial_balance: 28000,
+    current_balance: 28000,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+]
+
+export const simulationCostCenters: CostCenter[] = [
+  {
+    id: 'simulation-cc-001',
+    company_id: SIMULATION_COMPANY_ID,
+    name: 'Produção',
+    description: 'Centro de custo produção',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'simulation-cc-002',
+    company_id: SIMULATION_COMPANY_ID,
+    name: 'Comercial',
+    description: 'Centro de custo comercial',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'simulation-cc-003',
+    company_id: SIMULATION_COMPANY_ID,
+    name: 'Administrativo',
+    description: 'Centro de custo administrativo',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+]
+
+export const simulationChartAccounts: ChartAccount[] = [
+  { id: 'simulation-acc-1', code: '1', name: 'Receitas', parent_id: null, level: 1, account_type: 'gross_revenue', dre_group: 'gross_revenue', ebitda_group: 'net_revenue', cash_flow_group: 'operating_inflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-1-1', code: '1.1', name: 'Receita Shopee', parent_id: 'simulation-acc-1', level: 2, account_type: 'gross_revenue', dre_group: 'gross_revenue', ebitda_group: 'net_revenue', cash_flow_group: 'operating_inflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-1-2', code: '1.2', name: 'Receita Mercado Livre', parent_id: 'simulation-acc-1', level: 2, account_type: 'gross_revenue', dre_group: 'gross_revenue', ebitda_group: 'net_revenue', cash_flow_group: 'operating_inflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-1-4', code: '1.4', name: 'Receita Loja Própria', parent_id: 'simulation-acc-1', level: 2, account_type: 'gross_revenue', dre_group: 'gross_revenue', ebitda_group: 'net_revenue', cash_flow_group: 'operating_inflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-2', code: '2', name: 'Deduções da Receita', parent_id: null, level: 1, account_type: 'revenue_deduction', dre_group: 'revenue_deductions', ebitda_group: 'net_revenue', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-2-2', code: '2.2', name: 'Devoluções', parent_id: 'simulation-acc-2', level: 2, account_type: 'revenue_deduction', dre_group: 'revenue_deductions', ebitda_group: 'net_revenue', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-2-6', code: '2.6', name: 'Taxas de Marketplace', parent_id: 'simulation-acc-2', level: 2, account_type: 'revenue_deduction', dre_group: 'revenue_deductions', ebitda_group: 'net_revenue', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-3', code: '3', name: 'Custos dos Produtos Vendidos', parent_id: null, level: 1, account_type: 'cogs', dre_group: 'cogs', ebitda_group: 'cogs', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-3-1', code: '3.1', name: 'Tecido', parent_id: 'simulation-acc-3', level: 2, account_type: 'cogs', dre_group: 'cogs', ebitda_group: 'cogs', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-3-3', code: '3.3', name: 'Embalagem do Produto', parent_id: 'simulation-acc-3', level: 2, account_type: 'cogs', dre_group: 'cogs', ebitda_group: 'cogs', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-3-5', code: '3.5', name: 'Costura Externa', parent_id: 'simulation-acc-3', level: 2, account_type: 'cogs', dre_group: 'cogs', ebitda_group: 'cogs', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-4', code: '4', name: 'Despesas Comerciais', parent_id: null, level: 1, account_type: 'commercial_expense', dre_group: 'commercial_expenses', ebitda_group: 'commercial_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-4-1', code: '4.1', name: 'Comissão Marketplace', parent_id: 'simulation-acc-4', level: 2, account_type: 'commercial_expense', dre_group: 'commercial_expenses', ebitda_group: 'commercial_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-4-3', code: '4.3', name: 'Tráfego Pago', parent_id: 'simulation-acc-4', level: 2, account_type: 'commercial_expense', dre_group: 'commercial_expenses', ebitda_group: 'commercial_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-5', code: '5', name: 'Despesas Administrativas', parent_id: null, level: 1, account_type: 'administrative_expense', dre_group: 'administrative_expenses', ebitda_group: 'administrative_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-5-1', code: '5.1', name: 'Salários Administrativos', parent_id: 'simulation-acc-5', level: 2, account_type: 'administrative_expense', dre_group: 'administrative_expenses', ebitda_group: 'administrative_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-5-4', code: '5.4', name: 'Sistemas', parent_id: 'simulation-acc-5', level: 2, account_type: 'administrative_expense', dre_group: 'administrative_expenses', ebitda_group: 'administrative_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-5-6', code: '5.6', name: 'Aluguel', parent_id: 'simulation-acc-5', level: 2, account_type: 'administrative_expense', dre_group: 'administrative_expenses', ebitda_group: 'administrative_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-6', code: '6', name: 'Despesas Operacionais', parent_id: null, level: 1, account_type: 'operational_expense', dre_group: 'operational_expenses', ebitda_group: 'operational_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-6-1', code: '6.1', name: 'Energia Produção', parent_id: 'simulation-acc-6', level: 2, account_type: 'operational_expense', dre_group: 'operational_expenses', ebitda_group: 'operational_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-6-2', code: '6.2', name: 'Manutenção de Máquinas', parent_id: 'simulation-acc-6', level: 2, account_type: 'operational_expense', dre_group: 'operational_expenses', ebitda_group: 'operational_expenses', cash_flow_group: 'operating_outflow', affects_dre: true, affects_ebitda: true, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-7', code: '7', name: 'Depreciação e Amortização', parent_id: null, level: 1, account_type: 'depreciation', dre_group: 'depreciation_amortization', ebitda_group: 'excluded_from_ebitda', cash_flow_group: null, affects_dre: true, affects_ebitda: false, affects_cash_flow: false, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-7-1', code: '7.1', name: 'Depreciação Máquinas', parent_id: 'simulation-acc-7', level: 2, account_type: 'depreciation', dre_group: 'depreciation_amortization', ebitda_group: 'excluded_from_ebitda', cash_flow_group: null, affects_dre: true, affects_ebitda: false, affects_cash_flow: false, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-8', code: '8', name: 'Resultado Financeiro', parent_id: null, level: 1, account_type: 'financial_expense', dre_group: 'financial_result', ebitda_group: 'excluded_from_ebitda', cash_flow_group: 'financing_outflow', affects_dre: true, affects_ebitda: false, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-8-2', code: '8.2', name: 'Juros Pagos', parent_id: 'simulation-acc-8', level: 2, account_type: 'financial_expense', dre_group: 'financial_result', ebitda_group: 'excluded_from_ebitda', cash_flow_group: 'financing_outflow', affects_dre: true, affects_ebitda: false, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-9', code: '9', name: 'Impostos sobre Lucro', parent_id: null, level: 1, account_type: 'tax_on_profit', dre_group: 'taxes_on_profit', ebitda_group: 'excluded_from_ebitda', cash_flow_group: 'tax_outflow', affects_dre: true, affects_ebitda: false, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  { id: 'simulation-acc-9-1', code: '9.1', name: 'IRPJ', parent_id: 'simulation-acc-9', level: 2, account_type: 'tax_on_profit', dre_group: 'taxes_on_profit', ebitda_group: 'excluded_from_ebitda', cash_flow_group: 'tax_outflow', affects_dre: true, affects_ebitda: false, affects_cash_flow: true, is_active: true, company_id: SIMULATION_COMPANY_ID, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+]
+
+const makeEntry = (
+  id: string,
+  type: 'receivable' | 'payable',
+  description: string,
+  amount: number,
+  competenceDate: string,
+  dueDate: string,
+  status: 'open' | 'paid' | 'received' | 'overdue',
+  chartAccountId: string,
+  paidDate?: string
+): FinancialEntry => ({
+  id,
+  type,
+  description,
+  amount,
+  competence_date: competenceDate,
+  due_date: dueDate,
+  paid_or_received_date: paidDate ?? null,
+  status,
+  chart_account_id: chartAccountId,
+  cost_center_id: null,
+  channel: null,
+  company_id: SIMULATION_COMPANY_ID,
+  counterparty: null,
+  document_number: null,
+  payment_method: null,
+  installment_number: null,
+  total_installments: null,
+  parent_entry_id: null,
+  is_recurring: false,
+  recurrence_frequency: null,
+  recurrence_end_date: null,
+  bank_account_id: 'simulation-bank-001',
+  notes: null,
+  created_by: null,
+  created_at: '2026-03-01T00:00:00Z',
+  updated_at: '2026-03-01T00:00:00Z',
+})
+
+export const simulationFinancialEntries: FinancialEntry[] = [
+  makeEntry('simulation-entry-001', 'receivable', 'Receita Shopee - Março', 45000, '2026-03-31', '2026-04-05', 'received', 'simulation-acc-1-1', '2026-04-05'),
+  makeEntry('simulation-entry-002', 'receivable', 'Receita Mercado Livre - Março', 32000, '2026-03-31', '2026-04-08', 'received', 'simulation-acc-1-2', '2026-04-08'),
+  makeEntry('simulation-entry-003', 'receivable', 'Receita Loja Própria - Março', 18000, '2026-03-31', '2026-03-31', 'received', 'simulation-acc-1-4', '2026-03-31'),
+  makeEntry('simulation-entry-004', 'payable', 'Taxas Marketplace Shopee - Março', 4800, '2026-03-31', '2026-04-10', 'paid', 'simulation-acc-2-6', '2026-04-10'),
+  makeEntry('simulation-entry-005', 'payable', 'Taxas Marketplace ML - Março', 3700, '2026-03-31', '2026-04-12', 'paid', 'simulation-acc-2-6', '2026-04-12'),
+  makeEntry('simulation-entry-006', 'payable', 'Devoluções Março', 2800, '2026-03-31', '2026-04-05', 'paid', 'simulation-acc-2-2', '2026-04-05'),
+  makeEntry('simulation-entry-007', 'payable', 'Tecido - Lote Março', 12000, '2026-03-15', '2026-03-20', 'paid', 'simulation-acc-3-1', '2026-03-20'),
+  makeEntry('simulation-entry-008', 'payable', 'Embalagem Produto - Março', 2500, '2026-03-20', '2026-03-25', 'paid', 'simulation-acc-3-3', '2026-03-25'),
+  makeEntry('simulation-entry-009', 'payable', 'Costura Externa - Março', 8000, '2026-03-31', '2026-04-05', 'paid', 'simulation-acc-3-5', '2026-04-05'),
+  makeEntry('simulation-entry-010', 'payable', 'Comissão Marketplace - Março', 4800, '2026-03-31', '2026-04-10', 'paid', 'simulation-acc-4-1', '2026-04-10'),
+  makeEntry('simulation-entry-011', 'payable', 'Tráfego Pago Google/Meta - Março', 3200, '2026-03-31', '2026-04-01', 'paid', 'simulation-acc-4-3', '2026-04-01'),
+  makeEntry('simulation-entry-012', 'payable', 'Salários Administrativos - Março', 9500, '2026-03-31', '2026-04-05', 'paid', 'simulation-acc-5-1', '2026-04-05'),
+  makeEntry('simulation-entry-013', 'payable', 'Aluguel Galpão - Março', 4500, '2026-03-01', '2026-03-10', 'paid', 'simulation-acc-5-6', '2026-03-10'),
+  makeEntry('simulation-entry-014', 'payable', 'Sistemas e Software - Março', 800, '2026-03-01', '2026-03-05', 'paid', 'simulation-acc-5-4', '2026-03-05'),
+  makeEntry('simulation-entry-015', 'payable', 'Energia Elétrica Produção - Março', 1800, '2026-03-31', '2026-04-10', 'paid', 'simulation-acc-6-1', '2026-04-10'),
+  makeEntry('simulation-entry-016', 'payable', 'Manutenção Máquinas de Costura - Março', 600, '2026-03-15', '2026-03-20', 'paid', 'simulation-acc-6-2', '2026-03-20'),
+  makeEntry('simulation-entry-017', 'payable', 'Depreciação Equipamentos - Março', 1200, '2026-03-31', '2026-03-31', 'paid', 'simulation-acc-7-1', '2026-03-31'),
+  makeEntry('simulation-entry-018', 'payable', 'Juros Empréstimo Capital Giro - Março', 850, '2026-03-31', '2026-04-05', 'paid', 'simulation-acc-8-2', '2026-04-05'),
+  makeEntry('simulation-entry-019', 'payable', 'IRPJ Trimestral', 2100, '2026-03-31', '2026-04-30', 'open', 'simulation-acc-9-1'),
+
+  makeEntry('simulation-entry-020', 'receivable', 'Receita Shopee - Abril', 48000, '2026-04-30', '2026-05-05', 'received', 'simulation-acc-1-1', '2026-05-05'),
+  makeEntry('simulation-entry-021', 'receivable', 'Receita Mercado Livre - Abril', 35000, '2026-04-30', '2026-05-08', 'received', 'simulation-acc-1-2', '2026-05-08'),
+  makeEntry('simulation-entry-022', 'receivable', 'Receita Loja Própria - Abril', 20000, '2026-04-30', '2026-04-30', 'received', 'simulation-acc-1-4', '2026-04-30'),
+  makeEntry('simulation-entry-023', 'payable', 'Taxas Marketplace - Abril', 8500, '2026-04-30', '2026-05-12', 'open', 'simulation-acc-2-6'),
+  makeEntry('simulation-entry-024', 'payable', 'Tecido - Lote Abril', 13500, '2026-04-15', '2026-04-20', 'paid', 'simulation-acc-3-1', '2026-04-20'),
+  makeEntry('simulation-entry-025', 'payable', 'Costura Externa - Abril', 8500, '2026-04-30', '2026-05-05', 'open', 'simulation-acc-3-5'),
+  makeEntry('simulation-entry-026', 'payable', 'Salários Administrativos - Abril', 9500, '2026-04-30', '2026-05-05', 'open', 'simulation-acc-5-1'),
+  makeEntry('simulation-entry-027', 'payable', 'Aluguel Galpão - Abril', 4500, '2026-04-01', '2026-04-10', 'paid', 'simulation-acc-5-6', '2026-04-10'),
+  makeEntry('simulation-entry-028', 'payable', 'Tráfego Pago - Abril', 3500, '2026-04-30', '2026-05-01', 'open', 'simulation-acc-4-3'),
+  makeEntry('simulation-entry-029', 'payable', 'Comissão Marketplace - Abril', 5200, '2026-04-30', '2026-05-10', 'open', 'simulation-acc-4-1'),
+
+  makeEntry('simulation-entry-030', 'receivable', 'Receita Shopee - Maio (parcial)', 22000, '2026-05-15', '2026-05-20', 'open', 'simulation-acc-1-1'),
+  makeEntry('simulation-entry-031', 'receivable', 'Receita Mercado Livre - Maio (parcial)', 16000, '2026-05-15', '2026-05-22', 'open', 'simulation-acc-1-2'),
+  makeEntry('simulation-entry-032', 'payable', 'Aluguel Galpão - Maio', 4500, '2026-05-01', '2026-05-10', 'open', 'simulation-acc-5-6'),
+  makeEntry('simulation-entry-033', 'payable', 'Sistemas e Software - Maio', 800, '2026-05-01', '2026-05-05', 'open', 'simulation-acc-5-4'),
+  makeEntry('simulation-entry-034', 'payable', 'Tecido - Lote Maio', 14000, '2026-05-10', '2026-05-15', 'open', 'simulation-acc-3-1'),
+  makeEntry('simulation-entry-035', 'payable', 'Energia Elétrica Produção - Maio', 1900, '2026-05-31', '2026-06-10', 'open', 'simulation-acc-6-1'),
+  makeEntry('simulation-entry-036', 'receivable', 'Receita Shopee - Junho (projeção)', 50000, '2026-06-30', '2026-07-05', 'open', 'simulation-acc-1-1'),
+  makeEntry('simulation-entry-037', 'payable', 'Salários Administrativos - Maio', 9500, '2026-05-31', '2026-06-05', 'open', 'simulation-acc-5-1'),
+  makeEntry('simulation-entry-038', 'payable', 'Costura Externa - Maio', 9000, '2026-05-31', '2026-06-05', 'open', 'simulation-acc-3-5'),
+]

@@ -9,10 +9,11 @@ import { getChartAccounts, getFinancialEntries, getConsolidatedEntries, getCostC
 import { getCorporateChart } from '../services/corporateChartApi'
 import type { ChartAccountV2 } from '../services/corporateChartApi'
 import {
-  mockChartAccounts,
-  mockFinancialEntries,
-} from '../data/mockFinancialData'
+  simulationChartAccounts,
+  simulationFinancialEntries,
+} from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import { fmtBRL } from '../../../lib/currency'
 import type {
   ChartAccount,
@@ -82,10 +83,21 @@ export default function DreScreen({
       setLoading(true)
       setError(null)
 
-      if (isSimulation || !companyId || companyId === 'consolidated') {
+      if (isSimulation) {
         if (!cancelled) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
+          setEntries(simulationFinancialEntries)
+          setChartAccounts(simulationChartAccounts)
+          setLoading(false)
+        }
+        return
+      }
+
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) {
+          setEntries([])
+          setChartAccounts([])
+          setChartAccountsV2([])
+          setCostCenters([])
           setLoading(false)
         }
         return
@@ -99,20 +111,13 @@ export default function DreScreen({
           getCostCenters(companyId).catch(() => [] as CostCenter[]),
         ])
         if (cancelled) return
-        if (entriesData.length === 0 || accountsData.length === 0) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
-        } else {
-          setEntries(entriesData)
-          setChartAccounts(accountsData)
-          setChartAccountsV2(accountsV2Data)
-          setCostCenters(costCentersData)
-        }
+        setEntries(entriesData)
+        setChartAccounts(accountsData)
+        setChartAccountsV2(accountsV2Data)
+        setCostCenters(costCentersData)
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
-        setEntries(mockFinancialEntries)
-        setChartAccounts(mockChartAccounts)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -209,19 +214,58 @@ export default function DreScreen({
     )
   }
 
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">DRE</h1>
+        <p className="text-sm text-gray-500">
+          Demonstrativo de Resultado por regime de competência
+        </p>
+      </div>
+      {onPeriodChange && (
+        <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
+      )}
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return (
+        <div className="space-y-6">
+          {headerBlock}
+          <EmptyFinancialState variant="error" errorDetail={error} />
+        </div>
+      )
+    }
+    if (!companyId) {
+      return (
+        <div className="space-y-6">
+          {headerBlock}
+          <EmptyFinancialState variant="no-company" />
+        </div>
+      )
+    }
+    if (companyId === 'consolidated') {
+      return (
+        <div className="space-y-6">
+          {headerBlock}
+          <EmptyFinancialState variant="consolidated-blocked" />
+        </div>
+      )
+    }
+    if (entries.length === 0) {
+      return (
+        <div className="space-y-6">
+          {headerBlock}
+          <EmptyFinancialState variant="no-data" />
+        </div>
+      )
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">DRE</h1>
-          <p className="text-sm text-gray-500">
-            Demonstrativo de Resultado por regime de competência
-          </p>
-        </div>
-        {onPeriodChange && (
-          <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
-        )}
-      </div>
+      {headerBlock}
 
       {/* Story 2.3: controles de consolidado e canal */}
       <div className="flex flex-wrap items-center gap-3">
@@ -256,12 +300,6 @@ export default function DreScreen({
 
         <span className="text-xs text-gray-400 ml-auto">{contextLabel}</span>
       </div>
-
-      {error && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-          {error} - exibindo dados de demonstração.
-        </div>
-      )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <FinancialKpiCard

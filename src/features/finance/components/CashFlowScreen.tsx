@@ -9,11 +9,12 @@ import {
   getBankAccounts,
 } from '../services/financeApi'
 import {
-  mockChartAccounts,
-  mockFinancialEntries,
-  mockBankAccounts,
-} from '../data/mockFinancialData'
+  simulationChartAccounts,
+  simulationFinancialEntries,
+  simulationBankAccounts,
+} from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import { fmtBRL } from '../../../lib/currency'
 import type {
   ChartAccount,
@@ -69,11 +70,21 @@ export default function CashFlowScreen({
       setLoading(true)
       setError(null)
 
-      if (isSimulation || !companyId || companyId === 'consolidated') {
+      if (isSimulation) {
         if (!cancelled) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
-          setBankAccounts(mockBankAccounts)
+          setEntries(simulationFinancialEntries)
+          setChartAccounts(simulationChartAccounts)
+          setBankAccounts(simulationBankAccounts)
+          setLoading(false)
+        }
+        return
+      }
+
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) {
+          setEntries([])
+          setChartAccounts([])
+          setBankAccounts([])
           setLoading(false)
         }
         return
@@ -86,21 +97,12 @@ export default function CashFlowScreen({
           getBankAccounts(companyId),
         ])
         if (cancelled) return
-        if (entriesData.length === 0) {
-          setEntries(mockFinancialEntries)
-          setChartAccounts(mockChartAccounts)
-          setBankAccounts(mockBankAccounts)
-        } else {
-          setEntries(entriesData)
-          setChartAccounts(accountsData)
-          setBankAccounts(banksData)
-        }
+        setEntries(entriesData)
+        setChartAccounts(accountsData)
+        setBankAccounts(banksData)
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
-        setEntries(mockFinancialEntries)
-        setChartAccounts(mockChartAccounts)
-        setBankAccounts(mockBankAccounts)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -169,25 +171,38 @@ export default function CashFlowScreen({
     )
   }
 
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Fluxo de Caixa</h1>
+        <p className="text-sm text-gray-500">
+          Projecao diaria por regime de caixa
+        </p>
+      </div>
+      {onPeriodChange && (
+        <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
+      )}
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="error" errorDetail={error} /></div>
+    }
+    if (!companyId) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-company" /></div>
+    }
+    if (companyId === 'consolidated') {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="consolidated-blocked" /></div>
+    }
+    if (entries.length === 0) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-data" /></div>
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fluxo de Caixa</h1>
-          <p className="text-sm text-gray-500">
-            Projecao diaria por regime de caixa
-          </p>
-        </div>
-        {onPeriodChange && (
-          <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
-        )}
-      </div>
-
-      {error && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-          {error} - exibindo dados de demonstracao.
-        </div>
-      )}
+      {headerBlock}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <FinancialKpiCard

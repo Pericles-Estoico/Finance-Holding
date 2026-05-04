@@ -6,8 +6,9 @@ import { calculateIFRSDRE, calcIFRSKPIs } from '../services/ifrsEngine'
 import { ifrsDREToLegacy } from '../services/financeCalculations'
 import { getCorporateChart } from '../services/corporateChartApi'
 import { getFinancialEntries } from '../services/financeApi'
-import { mockFinancialEntries } from '../data/mockFinancialData'
+import { simulationFinancialEntries } from '../data/simulationData'
 import { useSimulation } from '../../../contexts/SimulationContext'
+import EmptyFinancialState from './EmptyFinancialState'
 import FinancialPeriodFilter from './FinancialPeriodFilter'
 import {
   SECTOR_BENCHMARKS, getBenchmarkStatus,
@@ -138,6 +139,7 @@ export default function InvestorKPIsScreen({
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [v2Accounts, setV2Accounts] = useState<ChartAccountV2[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Inputs manuais para ROE/ROA
   const [patrimonioLiquido, setPatrimonioLiquido] = useState<string>('')
@@ -148,8 +150,13 @@ export default function InvestorKPIsScreen({
     let cancelled = false
     async function load() {
       setLoading(true)
-      if (isSimulation || !companyId || companyId === 'consolidated') {
-        if (!cancelled) { setEntries(mockFinancialEntries); setLoading(false) }
+      setError(null)
+      if (isSimulation) {
+        if (!cancelled) { setEntries(simulationFinancialEntries); setLoading(false) }
+        return
+      }
+      if (!companyId || companyId === 'consolidated') {
+        if (!cancelled) { setEntries([]); setV2Accounts([]); setLoading(false) }
         return
       }
       try {
@@ -158,11 +165,11 @@ export default function InvestorKPIsScreen({
           getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
         ])
         if (!cancelled) {
-          setEntries(entriesData.length ? entriesData : mockFinancialEntries)
+          setEntries(entriesData)
           setV2Accounts(accountsData)
         }
-      } catch {
-        if (!cancelled) setEntries(mockFinancialEntries)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -250,6 +257,35 @@ export default function InvestorKPIsScreen({
         <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  const headerBlock = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">KPIs para Investidores</h1>
+        <p className="text-sm text-gray-500">
+          Benchmarks do setor confecção/varejo · SEBRAE + Abravest 2024
+        </p>
+      </div>
+      {onPeriodChange && (
+        <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
+      )}
+    </div>
+  )
+
+  if (!isSimulation) {
+    if (error) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="error" errorDetail={error} /></div>
+    }
+    if (!companyId) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-company" /></div>
+    }
+    if (companyId === 'consolidated') {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="consolidated-blocked" /></div>
+    }
+    if (entries.length === 0) {
+      return <div className="space-y-6">{headerBlock}<EmptyFinancialState variant="no-data" /></div>
+    }
   }
 
   const bm = SECTOR_BENCHMARKS
@@ -346,18 +382,7 @@ export default function InvestorKPIsScreen({
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">KPIs para Investidores</h1>
-          <p className="text-sm text-gray-500">
-            Benchmarks do setor confecção/varejo · SEBRAE + Abravest 2024
-          </p>
-        </div>
-        {onPeriodChange && (
-          <FinancialPeriodFilter value={period} onChange={onPeriodChange} />
-        )}
-      </div>
+      {headerBlock}
 
       {/* Placar */}
       {cards.length > 0 && (
