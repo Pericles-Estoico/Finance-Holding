@@ -80,7 +80,6 @@ export function suggestCorporateAccount(
   if (!accounts.length || !ocrText) return null
 
   // Apenas contas folha (não calculadas, sem filhos — i.e., sem filhos diretos)
-  const accountCodes = new Set(accounts.map((a) => a.account_code))
   const leafAccounts = accounts.filter((a) => {
     if (a.is_calculated) return false
     // Conta é folha se nenhuma outra conta tem ela como prefixo + "."

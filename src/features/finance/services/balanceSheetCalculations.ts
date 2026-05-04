@@ -106,10 +106,6 @@ export function calculateBalanceSheet(
 ): BalanceSheet {
   const balances = buildAccountBalances(accounts, entries)
 
-  const ativoAccounts = accounts.filter((a) => a.account_class === 'ASSET' && a.level === 1)
-  const passivoAccounts = accounts.filter((a) => a.account_class === 'LIABILITY' && a.level === 1)
-  const plAccounts = accounts.filter((a) => a.account_class === 'EQUITY' && a.level === 1)
-
   const ativoTree = buildTree(accounts, balances, null).filter((l) => l.account.account_class === 'ASSET')
   const passivoTree = buildTree(accounts, balances, null).filter((l) => l.account.account_class === 'LIABILITY')
   const plTree = buildTree(accounts, balances, null).filter((l) => l.account.account_class === 'EQUITY')
@@ -141,7 +137,6 @@ export function calculateBalanceSheet(
 export function calculateLiquidity(bs: BalanceSheet): LiquidityIndicators {
   const ativoCirc = sumTree(bs.ativo.circulante)
   const passivoCirc = sumTree(bs.passivo.circulante)
-  const ativoTotal = bs.ativo.total
   const passivoTotal = bs.passivo.total + sumTree(bs.patrimonioLiquido)
 
   // Estimativa de estoques = 30% do ativo circulante (sem dados específicos no BP simplificado)

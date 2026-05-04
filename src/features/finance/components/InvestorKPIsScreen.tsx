@@ -405,8 +405,8 @@ export default function InvestorKPIsScreen({
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {cards.map(card => (
-            <KPICard key={card.key} {...card} />
+          {cards.map(({ key, ...rest }) => (
+            <KPICard key={key} {...rest} />
           ))}
         </div>
       )}

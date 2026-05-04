@@ -37,9 +37,6 @@ export default function CorporateAccountSelect({
 
       {[...orderedClasses, ...remainingClasses].map((cls) => {
         const classAccounts = grouped.get(cls) ?? []
-        // Hierarquia: nível 1 como subgrupo, nível 2+ como opções
-        const level1 = classAccounts.filter((a) => a.account_code.split('.').length === 1)
-        const rest = classAccounts.filter((a) => a.account_code.split('.').length > 1)
 
         return (
           <optgroup key={cls} label={`── ${CLASS_LABELS[cls] ?? cls} ──`}>

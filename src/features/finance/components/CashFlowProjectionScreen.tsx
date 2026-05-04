@@ -250,9 +250,9 @@ export default function CashFlowProjectionScreen({
             <XAxis dataKey="year" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={(v) => fmtM(v)} tick={{ fontSize: 10 }} width={70} />
             <Tooltip
-              formatter={(value: number, name: string) => [
-                fmtBRL(value),
-                name === 'receita' ? 'Receita Líquida' : 'EBITDA',
+              formatter={(value, name) => [
+                fmtBRL(Number(value) || 0),
+                String(name) === 'receita' ? 'Receita Líquida' : 'EBITDA',
               ]}
             />
             <Legend
@@ -286,7 +286,7 @@ export default function CashFlowProjectionScreen({
               <td className="px-4 py-2.5 text-right text-gray-600">{fmtPct(baseDRE.margemEbitda)}</td>
               <td className="px-4 py-2.5 text-right text-gray-400">—</td>
             </tr>
-            {projection.map((row, i) => (
+            {projection.map((row) => (
               <tr key={row.year} className="hover:bg-gray-50">
                 <td className="px-4 py-2.5 font-medium text-gray-700">{row.year}</td>
                 <td className="px-4 py-2.5 text-right font-mono text-blue-700">{fmtBRL(row.receita)}</td>

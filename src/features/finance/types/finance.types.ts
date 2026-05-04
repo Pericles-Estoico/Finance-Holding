@@ -82,6 +82,7 @@ export interface FinancialEntry {
   paid_or_received_date: string | null
   status: EntryStatus
   chart_account_id: string
+  chart_account_v2_id: string | null
   cost_center_id: string | null
   channel: string | null
   company_id: string

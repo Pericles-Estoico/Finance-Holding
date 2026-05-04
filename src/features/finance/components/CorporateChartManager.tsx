@@ -283,6 +283,7 @@ export default function CorporateChartManager({ companyId }: Props) {
           is_active: true,
           company_id: companyId,
           created_by: null,
+          description: null,
         })
       }
       setShowCreateModal(false)

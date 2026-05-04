@@ -149,6 +149,7 @@ export default function FinancialEntriesPage() {
           paid_or_received_date: payload.paid_or_received_date,
           status: payload.status,
           chart_account_id: payload.chart_account_id,
+          chart_account_v2_id: payload.chart_account_v2_id,
           cost_center_id: payload.cost_center_id,
           channel: payload.channel,
           company_id: payload.company_id,

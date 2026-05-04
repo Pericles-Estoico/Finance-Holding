@@ -62,6 +62,7 @@ export default function FinancialEntryForm({
       paid_or_received_date: paidDate || null,
       status,
       chart_account_id: chartAccountId,
+      chart_account_v2_id: initial?.chart_account_v2_id ?? null,
       cost_center_id: costCenterId || null,
       channel: null,
       company_id: companyId,
