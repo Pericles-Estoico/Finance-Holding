@@ -19,7 +19,6 @@ function fmtGroup(g: string | null): string {
 export default function ChartAccountsManager({
   accounts,
   onSeed,
-  onCreate: _onCreate,
   onUpdate,
   loading = false,
 }: Props) {

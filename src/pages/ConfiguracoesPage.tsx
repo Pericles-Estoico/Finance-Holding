@@ -52,6 +52,7 @@ export default function ConfiguracoesPage() {
   const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '', tax_regime: 'simples_nacional' as TaxRegime })
   const [accountForm, setAccountForm] = useState({ code: '', name: '', type: 'despesa_operacional' as AccountCategory['type'] })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (user) loadCompanies() }, [user])
   useEffect(() => { if (selectedCompany) loadAccounts(selectedCompany.id) }, [selectedCompany])
 
@@ -104,7 +105,11 @@ export default function ConfiguracoesPage() {
   }
 
   function toggleType(type: string) {
-    setExpandedTypes(prev => { const n = new Set(prev); n.has(type) ? n.delete(type) : n.add(type); return n })
+    setExpandedTypes(prev => {
+      const n = new Set(prev)
+      if (n.has(type)) n.delete(type); else n.add(type)
+      return n
+    })
   }
 
   const accountsByType = (Object.keys(ACCOUNT_TYPE_LABEL) as AccountCategory['type'][])

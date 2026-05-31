@@ -40,7 +40,9 @@ export function useCorporateChart(companyId: string | null): UseCorporateChartRe
     }
   }, [companyId])
 
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    void reload()
+  }, [reload])
 
   const create = useCallback(async (payload: ChartAccountV2Insert) => {
     await createCorporateAccount(payload)

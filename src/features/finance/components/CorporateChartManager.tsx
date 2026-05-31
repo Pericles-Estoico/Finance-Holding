@@ -213,7 +213,7 @@ export default function CorporateChartManager({ companyId }: Props) {
   function toggleNode(id: string) {
     setExpanded(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
   }
@@ -221,7 +221,7 @@ export default function CorporateChartManager({ companyId }: Props) {
   function toggleClass(cls: AccountClass) {
     setExpandedClasses(prev => {
       const next = new Set(prev)
-      next.has(cls) ? next.delete(cls) : next.add(cls)
+      if (next.has(cls)) next.delete(cls); else next.add(cls)
       return next
     })
   }

@@ -99,8 +99,6 @@ export default function RelatoriosPage() {
     ? companies.map(c => c.id)
     : activeCompanyId ? [activeCompanyId] : []
 
-  useEffect(() => { loadData() }, [activeCompanyId, period, customFrom, customTo, isSimulation])
-
   async function loadData() {
     if (!companyIds.length) return
     setLoading(true)
@@ -112,6 +110,10 @@ export default function RelatoriosPage() {
       setTransactions(txs)
     } finally { setLoading(false) }
   }
+
+  useEffect(() => { loadData() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    , [activeCompanyId, period, customFrom, customTo, isSimulation])
 
   const accountMap = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
   const companyMap = useMemo(() => new Map(companies.map(c => [c.id, c])), [companies])

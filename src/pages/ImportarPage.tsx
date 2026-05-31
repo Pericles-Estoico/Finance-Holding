@@ -104,19 +104,6 @@ export default function ImportarPage() {
     return data
   }
 
-  // Load Drive config and pending items on mount / company change
-  useEffect(() => {
-    if (!activeCompany) return
-    getDriveConfig(activeCompany.id).then(cfg => {
-      if (cfg?.folder_url) { setFolderUrl(cfg.folder_url); setFolderConfigSaved(true) }
-      else if (cfg?.folder_id) { setFolderUrl(`https://drive.google.com/drive/folders/${cfg.folder_id}`); setFolderConfigSaved(true) }
-    }).catch(() => {})
-    loadPending(activeCompany.id)
-    getAccounts(activeCompany.id).then(setAllAccounts).catch(() => {})
-    getCorporateChart(activeCompany.id).then(setCorporateAccountsV2).catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCompany?.id])
-
   const loadPending = useCallback(async (companyId: string) => {
     try {
       const items = await getPendingClassifications(companyId)
@@ -135,8 +122,23 @@ export default function ImportarPage() {
         }
         return next
       })
-    } catch {}
+    } catch {
+      // silenciar — pending list é opcional
+    }
   }, [])
+
+  // Load Drive config and pending items on mount / company change
+  useEffect(() => {
+    if (!activeCompany) return
+    getDriveConfig(activeCompany.id).then(cfg => {
+      if (cfg?.folder_url) { setFolderUrl(cfg.folder_url); setFolderConfigSaved(true) }
+      else if (cfg?.folder_id) { setFolderUrl(`https://drive.google.com/drive/folders/${cfg.folder_id}`); setFolderConfigSaved(true) }
+    }).catch(() => {})
+    loadPending(activeCompany.id)
+    getAccounts(activeCompany.id).then(setAllAccounts).catch(() => {})
+    getCorporateChart(activeCompany.id).then(setCorporateAccountsV2).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompany?.id])
 
   // ── Manual import handlers ───────────────────────────────────────────────────
   const processOcr = async (base64: string, mimeType: string, driveUrl = '') => {

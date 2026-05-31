@@ -34,7 +34,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    fetchCompanies()
+    void fetchCompanies()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const activeCompany =
@@ -58,6 +59,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCompany() {
   const ctx = useContext(CompanyContext)
   if (!ctx) throw new Error('useCompany deve ser usado dentro de CompanyProvider')

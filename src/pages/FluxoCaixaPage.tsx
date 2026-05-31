@@ -16,17 +16,21 @@ export default function FluxoCaixaPage() {
   const { companies, activeCompanyId } = useCompany()
   const { isSimulation } = useSimulation()
 
+  interface CashFlowChartRow {
+    date: string
+    fullDate: string
+    receitas: number
+    despesas: number
+    saldoAcumulado: number
+  }
+
   const [period, setPeriod] = useState<ProjectionPeriod>('30d')
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<any[]>([])
+  const [data, setData] = useState<CashFlowChartRow[]>([])
 
   const companyIds = activeCompanyId === 'consolidated'
     ? companies.map(c => c.id)
     : activeCompanyId ? [activeCompanyId] : []
-
-  useEffect(() => {
-    if (companyIds.length > 0) loadCashFlow()
-  }, [activeCompanyId, isSimulation, period])
 
   const loadCashFlow = async () => {
     setLoading(true)
@@ -76,7 +80,7 @@ export default function FluxoCaixaPage() {
       }
 
       // Constrói array para o gráfico com saldo acumulado
-      const chartData = []
+      const chartData: CashFlowChartRow[] = []
       let currentBalance = initialBalance
 
       // Ordenar chaves
@@ -103,6 +107,11 @@ export default function FluxoCaixaPage() {
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (companyIds.length > 0) loadCashFlow()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, isSimulation, period])
 
   // KPIs
   const saldoAtual = data.length > 0 ? data[0].saldoAcumulado : 0

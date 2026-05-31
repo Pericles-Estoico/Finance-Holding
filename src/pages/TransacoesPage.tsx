@@ -49,14 +49,6 @@ export default function TransacoesPage() {
     ? companies.map(c => c.id)
     : [activeCompanyId]
 
-  useEffect(() => {
-    if (companyIds.length > 0) loadTransactions()
-  }, [activeCompanyId, isSimulation])
-
-  useEffect(() => {
-    if (form.company_id) loadAccounts(form.company_id)
-  }, [form.company_id])
-
   const loadTransactions = async () => {
     if (!companyIds.length) return
     const [data, accs] = await Promise.all([
@@ -71,6 +63,15 @@ export default function TransacoesPage() {
     const data = await getAccounts(companyId)
     setAccounts(data)
   }
+
+  useEffect(() => {
+    if (companyIds.length > 0) loadTransactions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, isSimulation])
+
+  useEffect(() => {
+    if (form.company_id) loadAccounts(form.company_id)
+  }, [form.company_id])
 
   const openNew = () => {
     setEditingTx(null)

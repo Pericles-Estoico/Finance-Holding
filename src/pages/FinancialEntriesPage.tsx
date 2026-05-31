@@ -97,7 +97,6 @@ export default function FinancialEntriesPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, isSimulation])
@@ -202,8 +201,8 @@ export default function FinancialEntriesPage() {
   }
 
   function handleDuplicate(entry: FinancialEntry) {
-    const { id, created_at, updated_at, paid_or_received_date, ...rest } = entry
-    void id; void created_at; void updated_at
+    const { id: _id, created_at: _ca, updated_at: _ua, paid_or_received_date: _pd, ...rest } = entry
+    void _id; void _ca; void _ua; void _pd
     setEditingEntry({
       ...rest,
       id: '',

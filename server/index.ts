@@ -21,14 +21,11 @@ app.use(express.json({ limit: '20mb' }))
 app.post('/api/ocr', upload.single('file'), async (req, res) => {
   try {
     let fileBase64: string
-    let mimeType: string
 
     if (req.file) {
       fileBase64 = req.file.buffer.toString('base64')
-      mimeType = req.file.mimetype
     } else if (req.body?.fileBase64) {
       fileBase64 = req.body.fileBase64
-      mimeType = req.body.mimeType ?? 'image/jpeg'
     } else {
       return res.status(400).json({ error: 'Arquivo não encontrado' })
     }

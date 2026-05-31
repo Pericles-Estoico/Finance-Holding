@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '.aiox-core', 'node_modules', 'supabase']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -17,6 +17,11 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+    rules: {
+      // Padrão canônico useEffect(() => loadData(), [deps]) é usado amplamente
+      // no projeto. A regra é nova (React Compiler) e gera ruído.
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])

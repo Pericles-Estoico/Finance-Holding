@@ -114,10 +114,6 @@ export default function DrePage() {
     ? companies.map(c => c.id)
     : activeCompanyId ? [activeCompanyId] : []
 
-  useEffect(() => {
-    if (companyIds.length > 0) loadData()
-  }, [activeCompanyId, period, customFrom, customTo, isSimulation])
-
   const loadData = async () => {
     if (!companyIds.length) return
     setLoading(true)
@@ -138,10 +134,15 @@ export default function DrePage() {
     }
   }
 
+  useEffect(() => {
+    if (companyIds.length > 0) loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, period, customFrom, customTo, isSimulation])
+
   const toggle = (code: string) => {
     setExpanded(prev => {
       const next = new Set(prev)
-      next.has(code) ? next.delete(code) : next.add(code)
+      if (next.has(code)) next.delete(code); else next.add(code)
       return next
     })
   }

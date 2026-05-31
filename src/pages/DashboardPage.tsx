@@ -146,6 +146,7 @@ export default function DashboardPage() {
     ? companies.map(c => c.id)
     : activeCompanyId ? [activeCompanyId] : []
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [activeCompanyId, period, customFrom, customTo, isSimulation])
 
   async function loadData() {
