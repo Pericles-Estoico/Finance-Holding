@@ -68,6 +68,7 @@ create table if not exists chart_accounts_v2 (
 -- ============================================================
 alter table chart_accounts_v2 enable row level security;
 
+drop policy if exists "users manage their chart_accounts_v2" on chart_accounts_v2;
 create policy "users manage their chart_accounts_v2"
   on chart_accounts_v2 for all
   using (

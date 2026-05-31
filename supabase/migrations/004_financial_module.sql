@@ -19,6 +19,7 @@ create table if not exists chart_accounts (
 );
 
 alter table chart_accounts enable row level security;
+drop policy if exists "users manage their chart_accounts" on chart_accounts;
 create policy "users manage their chart_accounts"
   on chart_accounts for all
   using (company_id in (select id from companies where user_id = auth.uid()));
@@ -53,6 +54,7 @@ create table if not exists financial_entries (
 );
 
 alter table financial_entries enable row level security;
+drop policy if exists "users manage their financial_entries" on financial_entries;
 create policy "users manage their financial_entries"
   on financial_entries for all
   using (company_id in (select id from companies where user_id = auth.uid()));
@@ -70,6 +72,7 @@ create table if not exists bank_accounts (
 );
 
 alter table bank_accounts enable row level security;
+drop policy if exists "users manage their bank_accounts" on bank_accounts;
 create policy "users manage their bank_accounts"
   on bank_accounts for all
   using (company_id in (select id from companies where user_id = auth.uid()));
@@ -85,6 +88,7 @@ create table if not exists cost_centers (
 );
 
 alter table cost_centers enable row level security;
+drop policy if exists "users manage their cost_centers" on cost_centers;
 create policy "users manage their cost_centers"
   on cost_centers for all
   using (company_id in (select id from companies where user_id = auth.uid()));
