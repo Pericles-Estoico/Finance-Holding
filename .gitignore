@@ -30,3 +30,33 @@ dist-ssr
 
 # Supabase CLI temp files (gerados por `supabase link`)
 supabase/.temp/
+
+# Environment & Secrets (AIOX)
+*.key
+*.pem
+
+# Dependencies (AIOX)
+node_modules/
+
+# Build & Logs (AIOX)
+dist/
+build/
+logs/
+
+# IDE & OS (AIOX)
+Thumbs.db
+.idea/
+*.swp
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.claude/settings.local.json
+.aiox/install-log.txt
+
+# AIOX backups e IDE configs alternativos (projeto usa Claude Code)
+.aiox-backup/
+.antigravity/
+.codex/
+.cursor/
+.gemini/
+.github/agents/
