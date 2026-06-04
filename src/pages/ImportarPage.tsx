@@ -21,6 +21,9 @@ import { getCorporateChart } from '../features/finance/services/corporateChartAp
 import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 import { suggestCorporateAccount } from '../features/finance/services/ocrCorporateMapping'
 import CorporateAccountSelect from '../features/finance/components/CorporateAccountSelect'
+import OfxImportWizard from '../features/finance/components/OfxImportWizard'
+import { getFinancialEntries } from '../features/finance/services/financeApi'
+import type { ChartAccount } from '../features/finance/types/finance.types'
 
 const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: 'amazon', label: 'Amazon' },
@@ -32,7 +35,7 @@ const CHANNELS: { value: SaleChannel; label: string }[] = [
 ]
 
 type Step = 'select' | 'processing' | 'validate' | 'done'
-type Tab = 'manual' | 'drive'
+type Tab = 'manual' | 'drive' | 'ofx'
 
 interface ValidationForm {
   description: string
@@ -91,6 +94,7 @@ export default function ImportarPage() {
   const [allAccounts, setAllAccounts] = useState<AccountCategory[]>([])
   const [corporateAccountsV2, setCorporateAccountsV2] = useState<ChartAccountV2[]>([])
   const [pendingExpanded, setPendingExpanded] = useState(true)
+  const [legacyChartAccounts, setLegacyChartAccounts] = useState<ChartAccount[]>([])
 
   const activeCompany = activeCompanyId !== 'consolidated'
     ? companies.find(c => c.id === activeCompanyId)
@@ -130,6 +134,11 @@ export default function ImportarPage() {
   // Load Drive config and pending items on mount / company change
   useEffect(() => {
     if (!activeCompany) return
+    // Carrega plano de contas legado para OfxImportWizard
+    getFinancialEntries(activeCompany.id).catch(() => {})
+    import('../features/finance/services/financeApi').then(({ getChartAccounts }) => {
+      getChartAccounts(activeCompany.id).then(setLegacyChartAccounts).catch(() => {})
+    })
     getDriveConfig(activeCompany.id).then(cfg => {
       if (cfg?.folder_url) { setFolderUrl(cfg.folder_url); setFolderConfigSaved(true) }
       else if (cfg?.folder_id) { setFolderUrl(`https://drive.google.com/drive/folders/${cfg.folder_id}`); setFolderConfigSaved(true) }
@@ -356,11 +365,17 @@ export default function ImportarPage() {
           Upload Manual
         </button>
         <button
+          onClick={() => setTab('ofx')}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${tab === 'ofx' ? 'bg-blue-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+        >
+          Extrato OFX
+        </button>
+        <button
           onClick={() => setTab('drive')}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${tab === 'drive' ? 'bg-blue-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
         >
           <FolderSync className="w-4 h-4" />
-          Drive Automatico
+          Drive
           {pendingItems.length > 0 && (
             <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${tab === 'drive' ? 'bg-amber-400 text-amber-900' : 'bg-amber-100 text-amber-700'}`}>
               {pendingItems.length}
@@ -570,6 +585,21 @@ export default function ImportarPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── OFX Import Tab ────────────────────────────────────────────────────── */}
+      {tab === 'ofx' && activeCompany && (
+        <OfxImportWizard
+          companyId={activeCompany.id}
+          chartAccounts={legacyChartAccounts}
+          chartAccountsV2={corporateAccountsV2}
+          onImported={() => {}}
+        />
+      )}
+      {tab === 'ofx' && !activeCompany && (
+        <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-700">
+          Selecione uma empresa para importar extratos OFX.
+        </div>
       )}
 
       {/* ── Drive Auto-Import Tab ─────────────────────────────────────────────── */}
