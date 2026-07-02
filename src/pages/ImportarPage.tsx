@@ -91,6 +91,7 @@ export default function ImportarPage() {
   const [pendingItems, setPendingItems] = useState<PendingClassification[]>([])
   const [pendingForms, setPendingForms] = useState<Record<string, PendingForm>>({})
   const [classifyingId, setClassifyingId] = useState<string | null>(null)
+  const [classifyErrors, setClassifyErrors] = useState<Record<string, string>>({})
   const [allAccounts, setAllAccounts] = useState<AccountCategory[]>([])
   const [corporateAccountsV2, setCorporateAccountsV2] = useState<ChartAccountV2[]>([])
   const [pendingExpanded, setPendingExpanded] = useState(true)
@@ -329,9 +330,12 @@ export default function ImportarPage() {
   const handleClassify = async (pendingId: string) => {
     if (!activeCompany) return
     const pf = pendingForms[pendingId]
-    if (!pf?.account_id) { setDriveError(`Selecione uma conta para o item.`); return }
+    if (!pf?.account_id) {
+      setClassifyErrors(prev => ({ ...prev, [pendingId]: 'Selecione uma conta para o item.' }))
+      return
+    }
     setClassifyingId(pendingId)
-    setDriveError(null)
+    setClassifyErrors(prev => { const next = { ...prev }; delete next[pendingId]; return next })
     try {
       await classifyPending({
         pending_id: pendingId,
@@ -342,7 +346,10 @@ export default function ImportarPage() {
       })
       setPendingItems(prev => prev.filter(i => i.id !== pendingId))
     } catch (e: unknown) {
-      setDriveError(e instanceof Error ? e.message : 'Erro ao classificar')
+      setClassifyErrors(prev => ({
+        ...prev,
+        [pendingId]: e instanceof Error ? e.message : 'Erro ao classificar',
+      }))
     }
     setClassifyingId(null)
   }
@@ -770,6 +777,13 @@ export default function ImportarPage() {
                         Memorizar: proximos recibos de <strong>{extracted.payee ?? 'este favorecido'}</strong> irao direto para esta conta
                       </span>
                     </label>
+
+                    {classifyErrors[item.id] && (
+                      <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 shrink-0" />
+                        <p className="text-red-600 text-xs">{classifyErrors[item.id]}</p>
+                      </div>
+                    )}
 
                     <button
                       onClick={() => handleClassify(item.id)}

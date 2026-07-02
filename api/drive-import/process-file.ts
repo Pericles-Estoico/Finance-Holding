@@ -13,20 +13,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: existing } = await supabase
       .from('drive_processed_files').select('id,status,transaction_id')
       .eq('drive_file_id', file_id).eq('company_id', company_id).maybeSingle()
-    if (existing) return res.json({ status: 'already_processed', transaction_id: existing.transaction_id })
+
+    if (existing?.status === 'done') {
+      return res.json({ status: 'already_processed', transaction_id: existing.transaction_id })
+    }
+
+    // Clean up stuck pending records so the file can be reprocessed cleanly
+    if (existing?.status === 'pending') {
+      await supabase.from('drive_processed_files').delete().eq('id', existing.id)
+      await supabase.from('pending_classifications')
+        .delete().eq('drive_file_id', file_id).eq('company_id', company_id)
+    }
 
     const extracted = await extractReceiptWithClaude(base64, mime_type)
     const payeeKey = (extracted.payee ?? '').toLowerCase().trim()
 
     const { data: rule } = await supabase
-      .from('payee_account_rules').select('account_id,transaction_type')
+      .from('payee_account_rules').select('account_id,chart_account_v2_id,transaction_type')
       .eq('company_id', company_id).eq('payee_name', payeeKey).maybeSingle()
 
     if (rule && extracted.amount_cents && extracted.date) {
+      const accountField = rule.chart_account_v2_id
+        ? { chart_account_v2_id: rule.chart_account_v2_id }
+        : { account_id: rule.account_id }
+
       const { data: tx, error: txErr } = await supabase.from('transactions').insert({
-        company_id, account_id: rule.account_id, type: rule.transaction_type,
+        company_id, type: rule.transaction_type,
         amount_cents: extracted.amount_cents, description: extracted.payee ?? file_name,
-        date: extracted.date, drive_file_url: file_url, drive_file_id: file_id, is_simulation: false,
+        date: extracted.date, drive_file_url: file_url, drive_file_id: file_id,
+        is_simulation: false, ...accountField,
       }).select('id').single()
       if (txErr) throw new Error(txErr.message)
       await supabase.from('drive_processed_files').insert({
