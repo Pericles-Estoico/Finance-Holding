@@ -16,6 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('id', pending_id).eq('company_id', company_id).single()
     if (!pending) return res.status(404).json({ error: 'Pendente nao encontrado' })
 
+    // Idempotency guard: already classified → return existing transaction
+    if (pending.status === 'done' && pending.transaction_id) {
+      return res.json({ transaction_id: pending.transaction_id })
+    }
+
     const extracted = pending.extracted_data as { payee?: string; amount_cents?: number; date?: string }
 
     // Detect whether account_id belongs to chart_accounts_v2 (Corporate) or chart_of_accounts (legacy)

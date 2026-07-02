@@ -165,6 +165,13 @@ export async function classifyOfxEntry(
 
   const p = pending as OfxPendingEntry
 
+  // Idempotency guard: already imported → return existing financial_entry
+  if (p.status === 'imported' && p.imported_entry_id) {
+    const { data: existing } = await supabase
+      .from('financial_entries').select('*').eq('id', p.imported_entry_id).single()
+    if (existing) return existing as FinancialEntry
+  }
+
   const entryPayload: Omit<FinancialEntry, 'id' | 'created_at' | 'updated_at'> = {
     type:                  classification.entryType,
     description:           classification.description || p.name || p.memo,
