@@ -11,6 +11,8 @@ import { calcDRE } from '../lib/dre'
 import { gerarDREPDF, gerarTransacoesPDF, gerarResumoExecutivoPDF } from '../lib/export/pdf'
 import { exportTransacoesCSV, exportDRECSV } from '../lib/export/csv'
 import type { Transaction, AccountCategory } from '../types'
+import { getCorporateChart } from '../features/finance/services/corporateChartApi'
+import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 
 // ─── Período ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +96,7 @@ export default function RelatoriosPage() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [accounts, setAccounts]         = useState<AccountCategory[]>([])
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
 
   const companyIds = activeCompanyId === 'consolidated'
     ? companies.map(c => c.id)
@@ -104,9 +107,13 @@ export default function RelatoriosPage() {
     setLoading(true)
     try {
       const { from, to } = getRange(period, customFrom, customTo)
-      const accs = await Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat())
-      const txs  = await getTransactions({ companyIds, isSimulation, dateFrom: from, dateTo: to })
+      const [accs, v2Accs, txs] = await Promise.all([
+        Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat()),
+        Promise.all(companyIds.map(id => getCorporateChart(id))).then(r => r.flat()).catch(() => [] as ChartAccountV2[]),
+        getTransactions({ companyIds, isSimulation, dateFrom: from, dateTo: to }),
+      ])
       setAccounts(accs)
+      setChartAccountsV2(v2Accs)
       setTransactions(txs)
     } finally { setLoading(false) }
   }
@@ -120,8 +127,8 @@ export default function RelatoriosPage() {
   const activeCompany = companies.find(c => c.id === activeCompanyId) ?? null
 
   const dre = useMemo(
-    () => accounts.length ? calcDRE(transactions, accounts) : null,
-    [transactions, accounts],
+    () => (accounts.length || chartAccountsV2.length) ? calcDRE(transactions, accounts, chartAccountsV2) : null,
+    [transactions, accounts, chartAccountsV2],
   )
 
   const { from, to } = getRange(period, customFrom, customTo)

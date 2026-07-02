@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
 import type { Transaction, AccountCategory } from '../types'
+import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 import { sumCents, calcPercent, formatBRL, formatPercent } from './currency'
 
 export interface DRELine {
@@ -32,9 +33,11 @@ export interface DREResult {
 
 export function calcDRE(
   transactions: Transaction[],
-  accounts: AccountCategory[]
+  accounts: AccountCategory[],
+  chartAccountsV2: ChartAccountV2[] = []
 ): DREResult {
   const accountMap = new Map(accounts.map(a => [a.id, a]))
+  const v2AccountMap = new Map(chartAccountsV2.map(a => [a.id, a]))
 
   // Agrupa transações por tipo de conta
   const byType: Record<string, Transaction[]> = {
@@ -46,15 +49,24 @@ export function calcDRE(
   }
 
   for (const tx of transactions) {
-    const acc = accountMap.get(tx.account_id)
-    if (!acc) continue
-    if (acc.type === 'receita') {
-      // Deduções têm código começando com 1.0
-      if (acc.code.startsWith('1.0')) byType.deducao.push(tx)
-      else byType.receita.push(tx)
-    } else if (acc.type === 'cmv') byType.cmv.push(tx)
-    else if (acc.type === 'despesa_operacional') byType.despesa_operacional.push(tx)
-    else if (acc.type === 'imposto') byType.imposto.push(tx)
+    // Tenta conta legada primeiro; fallback para conta V2 corporativa
+    const acc = tx.account_id ? accountMap.get(tx.account_id) : undefined
+    if (acc) {
+      if (acc.type === 'receita') {
+        if (acc.code.startsWith('1.0')) byType.deducao.push(tx)
+        else byType.receita.push(tx)
+      } else if (acc.type === 'cmv') byType.cmv.push(tx)
+      else if (acc.type === 'despesa_operacional') byType.despesa_operacional.push(tx)
+      else if (acc.type === 'imposto') byType.imposto.push(tx)
+      continue
+    }
+
+    // Conta V2 corporativa (chart_accounts_v2)
+    const v2acc = tx.chart_account_v2_id ? v2AccountMap.get(tx.chart_account_v2_id) : undefined
+    if (!v2acc) continue
+    if (v2acc.account_class === 'REVENUE') byType.receita.push(tx)
+    else if (v2acc.account_class === 'EXPENSE') byType.despesa_operacional.push(tx)
+    // ASSET, LIABILITY, EQUITY → balanço, não DRE
   }
 
   // Totais

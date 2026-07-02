@@ -7,6 +7,8 @@ import { getAccounts } from '../lib/api/accounts'
 import { calcDRE, formatBRL, formatPercent } from '../lib/dre'
 import type { DREResult, DRELine } from '../lib/dre'
 import type { Transaction } from '../types'
+import { getCorporateChart } from '../features/finance/services/corporateChartApi'
+import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 
 // Benchmarks do setor (PRD §5)
 const BENCHMARK = { margemBruta: { min: 55, max: 70 }, margemLiquida: { min: 18, max: 26 } }
@@ -108,6 +110,7 @@ export default function DrePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [dre, setDre] = useState<DREResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['1', '2', '3', '4']))
 
   const companyIds = activeCompanyId === 'consolidated'
@@ -120,13 +123,15 @@ export default function DrePage() {
     try {
       const { from, to } = getPeriodDates(period, customFrom, customTo)
 
-      const [txs, accs] = await Promise.all([
+      const [txs, accs, v2Accs] = await Promise.all([
         getTransactions({ companyIds, isSimulation, dateFrom: from, dateTo: to }),
         Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat()),
+        Promise.all(companyIds.map(id => getCorporateChart(id))).then(r => r.flat()).catch(() => [] as ChartAccountV2[]),
       ])
 
       setTransactions(txs)
-      const result = calcDRE(txs, accs)
+      setChartAccountsV2(v2Accs)
+      const result = calcDRE(txs, accs, v2Accs)
       result.period = `${from} a ${to}`
       setDre(result)
     } finally {

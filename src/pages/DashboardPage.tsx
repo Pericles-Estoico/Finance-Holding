@@ -15,6 +15,8 @@ import { getTransactions } from '../lib/api/transactions'
 import { getAccounts } from '../lib/api/accounts'
 import { calcDRE, formatBRL, formatPercent } from '../lib/dre'
 import type { Transaction, AccountCategory } from '../types'
+import { getCorporateChart } from '../features/finance/services/corporateChartApi'
+import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 import Decimal from 'decimal.js'
 import PeriodChips from '../components/ui/PeriodChips'
 
@@ -140,7 +142,8 @@ export default function DashboardPage() {
   const [curTxs,   setCurTxs]   = useState<Transaction[]>([])
   const [prevTxs,  setPrevTxs]  = useState<Transaction[]>([])
   const [trendTxs, setTrendTxs] = useState<Transaction[]>([])
-  const [accounts, setAccounts] = useState<AccountCategory[]>([])
+  const [accounts, setAccounts]     = useState<AccountCategory[]>([])
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
 
   const companyIds = activeCompanyId === 'consolidated'
     ? companies.map(c => c.id)
@@ -156,8 +159,12 @@ export default function DashboardPage() {
       const cur  = getRange(period, customFrom, customTo)
       const prev = getPrevRange(period, customFrom, customTo)
       const t12  = get12m()
-      const accs = await Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat())
+      const [accs, v2Accs] = await Promise.all([
+        Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat()),
+        Promise.all(companyIds.map(id => getCorporateChart(id))).then(r => r.flat()).catch(() => [] as ChartAccountV2[]),
+      ])
       setAccounts(accs)
+      setChartAccountsV2(v2Accs)
       const [c, p, t] = await Promise.all([
         getTransactions({ companyIds, isSimulation, dateFrom: cur.from, dateTo: cur.to }),
         prev.from ? getTransactions({ companyIds, isSimulation, dateFrom: prev.from, dateTo: prev.to }) : Promise.resolve([] as Transaction[]),
@@ -168,19 +175,28 @@ export default function DashboardPage() {
     } finally { setLoading(false) }
   }
 
-  const accMap = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
-  const curDRE  = useMemo(() => accounts.length ? calcDRE(curTxs,  accounts) : null, [curTxs,  accounts])
-  const prevDRE = useMemo(() => (accounts.length && prevTxs.length) ? calcDRE(prevTxs, accounts) : null, [prevTxs, accounts])
+  const accMap   = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
+  const v2AccMap = useMemo(() => new Map(chartAccountsV2.map(a => [a.id, a])), [chartAccountsV2])
+  const curDRE  = useMemo(() => (accounts.length || chartAccountsV2.length) ? calcDRE(curTxs,  accounts, chartAccountsV2) : null, [curTxs,  accounts, chartAccountsV2])
+  const prevDRE = useMemo(() => ((accounts.length || chartAccountsV2.length) && prevTxs.length) ? calcDRE(prevTxs, accounts, chartAccountsV2) : null, [prevTxs, accounts, chartAccountsV2])
 
   const curAOV = useMemo(() => {
-    const n = curTxs.filter(tx => accMap.get(tx.account_id)?.type === 'receita').length
+    const n = curTxs.filter(tx => {
+      const acc = accMap.get(tx.account_id ?? '')
+      if (acc) return acc.type === 'receita' && !acc.code.startsWith('1.0')
+      return v2AccMap.get(tx.chart_account_v2_id ?? '')?.account_class === 'REVENUE'
+    }).length
     return n > 0 && curDRE ? Math.round(curDRE.receitaBruta / n) : 0
-  }, [curTxs, accMap, curDRE])
+  }, [curTxs, accMap, v2AccMap, curDRE])
 
   const prevAOV = useMemo(() => {
-    const n = prevTxs.filter(tx => accMap.get(tx.account_id)?.type === 'receita').length
+    const n = prevTxs.filter(tx => {
+      const acc = accMap.get(tx.account_id ?? '')
+      if (acc) return acc.type === 'receita' && !acc.code.startsWith('1.0')
+      return v2AccMap.get(tx.chart_account_v2_id ?? '')?.account_class === 'REVENUE'
+    }).length
     return n > 0 && prevDRE ? Math.round(prevDRE.receitaBruta / n) : 0
-  }, [prevTxs, accMap, prevDRE])
+  }, [prevTxs, accMap, v2AccMap, prevDRE])
 
   // Tendência 12m
   const trendData = useMemo(() => {
@@ -188,11 +204,19 @@ export default function DashboardPage() {
     for (const tx of trendTxs) {
       const k = tx.date.slice(0,7)
       if (!mo[k]) mo[k] = { receita: 0, despesas: 0 }
-      const acc = accMap.get(tx.account_id)
-      if (!acc) continue
-      if (acc.type === 'receita' && !acc.code.startsWith('1.0'))
+      const acc = accMap.get(tx.account_id ?? '')
+      if (acc) {
+        if (acc.type === 'receita' && !acc.code.startsWith('1.0'))
+          mo[k].receita = new Decimal(mo[k].receita).plus(tx.amount_cents).toNumber()
+        else if (['cmv','despesa_operacional','imposto'].includes(acc.type))
+          mo[k].despesas = new Decimal(mo[k].despesas).plus(tx.amount_cents).toNumber()
+        continue
+      }
+      const v2acc = v2AccMap.get(tx.chart_account_v2_id ?? '')
+      if (!v2acc) continue
+      if (v2acc.account_class === 'REVENUE')
         mo[k].receita = new Decimal(mo[k].receita).plus(tx.amount_cents).toNumber()
-      else if (['cmv','despesa_operacional','imposto'].includes(acc.type))
+      else if (v2acc.account_class === 'EXPENSE')
         mo[k].despesas = new Decimal(mo[k].despesas).plus(tx.amount_cents).toNumber()
     }
     return Object.entries(mo).sort(([a],[b])=>a.localeCompare(b)).map(([k,v]) => ({
@@ -201,7 +225,7 @@ export default function DashboardPage() {
       Despesas: parseFloat((v.despesas/100).toFixed(2)),
       Lucro:    parseFloat(((v.receita-v.despesas)/100).toFixed(2)),
     }))
-  }, [trendTxs, accMap])
+  }, [trendTxs, accMap, v2AccMap])
 
   // Canais
   const chData = useMemo(() => {
