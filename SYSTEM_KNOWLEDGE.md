@@ -168,9 +168,19 @@ const dreForDisplay = useMemo(() => {
 | `011_new_chart_of_accounts.sql` | Plano de contas gerencial simplificado |
 | `012_add_fuel_accounts.sql` | Adiciona 3.8 Logística e Transporte (3.8.1 Combustível Empresa, 3.8.2 Combustível Terceiros, 3.8.3 Frete e Entrega, 3.8.4 Manutenção de Veículos). Legado: 6.5 e 6.6 |
 | `013_add_fuel_to_chart_accounts.sql` | Adiciona 6.5 Combustível Empresa e 6.6 Combustível Terceiros em `chart_accounts` (tabela do formulário de lançamentos) |
-| `014_add_travel_expenses.sql` | Adiciona 6.7 Despesas de Viagem em `chart_accounts` |
+| `014_add_travel_expenses.sql` | Adiciona 6.7 Despesas de Viagem em `chart_accounts` (tabela do formulário de lançamentos simples) |
+| `015_add_travel_expenses_v2.sql` | Adiciona **3.8.5 Despesas de Viagem** em `chart_accounts_v2` (tabela IFRS usada pela página Importar via `CorporateAccountSelect.tsx`) |
 
 > **Como aplicar nova migration:** criar arquivo `0NN_*.sql` e executar via `supabase db push` após `supabase link --project-ref tkvlzjvaazhjbxwsnywc`.
+
+### CRÍTICO — Duas tabelas de contas: não confundir
+
+| Tabela | Códigos | Componente que usa | Página |
+|--------|---------|-------------------|--------|
+| `chart_accounts` | 1 a 11 (simples, ex: 6.7) | `FinancialEntryForm.tsx` | Lançamentos |
+| `chart_accounts_v2` | IFRS (ex: 3.8.5) | `CorporateAccountSelect.tsx` | Importar |
+
+Ao adicionar nova conta, **adicionar nas duas tabelas** se necessário, além de `simulationData.ts`.
 
 ### Conta Pró-Labore
 - **Código:** `5.2` (migration 004) / `5.3.2.1.6` (migration 007)
@@ -272,9 +282,10 @@ Ao fazer qualquer alteração nos engines de cálculo, valide:
 - [ ] Exportação PDF gera arquivo com dados
 - [ ] Exportação Excel gera arquivo com dados
 - [ ] Pró-labore no formulário mostra dropdown de beneficiário (Família, Pericles, Felipe, Stella, Kalev, Doações)
-- [ ] Despesas de Viagem (6.7) aparece na lista de contas do formulário
-- [ ] Combustível Empresa (6.5) e Combustível Terceiros (6.6) aparecem no formulário
+- [ ] Despesas de Viagem (6.7) aparece na lista de contas do formulário de Lançamentos
+- [ ] Combustível Empresa (6.5) e Combustível Terceiros (6.6) aparecem no formulário de Lançamentos
 - [ ] Modo Simulação: mesmas contas acima aparecem em `simulationData.ts`
+- [ ] Página Importar: Despesas de Viagem (3.8.5) aparece no dropdown `CorporateAccountSelect` (tabela `chart_accounts_v2`)
 - [ ] TypeScript sem erros: `npx tsc --noEmit`
 
 ---
@@ -309,7 +320,7 @@ src/
     └── index.ts                        # Transaction, AccountCategory (legado)
 
 supabase/
-└── migrations/                         # 001 a 014 — aplicar em ordem via supabase db push
+└── migrations/                         # 001 a 015 — aplicar em ordem via supabase db push
 ```
 
 > **CRÍTICO — simulationData.ts:** Toda vez que uma nova conta for adicionada via migration em `chart_accounts`, ela DEVE ser adicionada também em `simulationData.ts` (array `simulationChartAccounts`). Caso contrário, o Modo Simulação não exibirá a conta e o dropdown de Pró-labore não funcionará em simulação.
@@ -337,4 +348,5 @@ supabase/
 | 2026-07 | Dashboard R$0 com "Este mês" e "Hoje" | Filtros usavam mês/dia calendário corrente, sem dados em julho | `DashboardPage.tsx` |
 | 2026-07 | `dre.*` no JSX em vez de `dreForDisplay.*` | Refatoração incompleta do FinanceDashboard | `FinanceDashboard.tsx` |
 | 2026-07 | `calcDRE` ignorava transações sem conta vinculada | Sem fallback por `tx.type` quando `account_id` e `chart_account_v2_id` ambos null | `dre.ts` |
-| 2026-07 | Despesas de Viagem e Pró-labore não apareciam no formulário | `simulationData.ts` não tinha as contas 6.5, 6.6, 6.7 e 5.2 — Modo Simulação ignora Supabase e usa dados hardcoded | `simulationData.ts` |
+| 2026-07 | Despesas de Viagem e Pró-labore não apareciam no formulário simples | `simulationData.ts` não tinha as contas 6.5, 6.6, 6.7 e 5.2 — Modo Simulação ignora Supabase e usa dados hardcoded | `simulationData.ts` |
+| 2026-07 | Despesas de Viagem (3.8.5) não aparecia na página Importar | Conta faltava em `chart_accounts_v2` (tabela IFRS, códigos 3.x.x). As migrations 013 e 014 adicionaram na tabela errada (`chart_accounts`). A migration 015 corrigiu inserindo em `chart_accounts_v2`. | `supabase/migrations/015_add_travel_expenses_v2.sql` |
