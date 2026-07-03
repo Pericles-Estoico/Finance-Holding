@@ -7,6 +7,9 @@ import {
   calculateEBITDA,
 } from '../services/financeCalculations'
 import { getChartAccounts, getFinancialEntries } from '../services/financeApi'
+import { getCorporateChart } from '../services/corporateChartApi'
+import { calculateIFRSDRE } from '../services/ifrsEngine'
+import type { ChartAccountV2 } from '../services/corporateChartApi'
 import {
   simulationChartAccounts,
   simulationFinancialEntries,
@@ -54,6 +57,7 @@ export default function EbitdaScreen({
 
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,13 +87,15 @@ export default function EbitdaScreen({
       }
 
       try {
-        const [accountsData, entriesData] = await Promise.all([
+        const [accountsData, entriesData, accountsV2Data] = await Promise.all([
           getChartAccounts(companyId),
           getFinancialEntries(companyId),
+          getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
         ])
         if (cancelled) return
         setEntries(entriesData)
         setChartAccounts(accountsData)
+        setChartAccountsV2(accountsV2Data)
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
@@ -121,29 +127,68 @@ export default function EbitdaScreen({
     [entries, startDate, endDate]
   )
 
+  const useIFRS = chartAccountsV2.length > 0
+
+  const ifrsResult = useMemo(
+    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, period) : null,
+    [entries, chartAccountsV2, period, useIFRS]
+  )
+
+  const ifrsResultPrev = useMemo(
+    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, previousPeriod) : null,
+    [entries, chartAccountsV2, previousPeriod, useIFRS]
+  )
+
   const dre = useMemo(
-    () => calculateDRE(entries, chartAccounts, period),
-    [entries, chartAccounts, period]
+    () => useIFRS ? calculateDRE([], chartAccounts, period) : calculateDRE(entries, chartAccounts, period),
+    [entries, chartAccounts, period, useIFRS]
   )
 
-  const ebitda = useMemo(
-    () => calculateEBITDA(dre, periodEntries, chartAccounts),
-    [dre, periodEntries, chartAccounts]
-  )
-
-  const previousDre = useMemo(
-    () => calculateDRE(entries, chartAccounts, previousPeriod),
-    [entries, chartAccounts, previousPeriod]
-  )
+  const ebitda = useMemo(() => {
+    if (ifrsResult) {
+      const n = (d: { toNumber(): number }) => d.toNumber()
+      return {
+        netRevenue: n(ifrsResult.receitaLiquida),
+        cogs: n(ifrsResult.cpv),
+        grossProfit: n(ifrsResult.lucroBruto),
+        eligibleExpenses: n(ifrsResult.totalDespesasOperacionais),
+        ebitda: n(ifrsResult.ebitda),
+        ebitdaMargin: n(ifrsResult.margemEBITDA),
+        excludedItems: [],
+        byGroup: {
+          commercial_expenses: n(ifrsResult.despesasComerciais),
+          administrative_expenses: n(ifrsResult.despesasAdministrativas),
+          operational_expenses: 0,
+        },
+      }
+    }
+    return calculateEBITDA(dre, periodEntries, chartAccounts)
+  }, [ifrsResult, dre, periodEntries, chartAccounts])
 
   const previousEbitda = useMemo(() => {
+    if (ifrsResultPrev) {
+      const n = (d: { toNumber(): number }) => d.toNumber()
+      return {
+        netRevenue: n(ifrsResultPrev.receitaLiquida),
+        cogs: n(ifrsResultPrev.cpv),
+        grossProfit: n(ifrsResultPrev.lucroBruto),
+        eligibleExpenses: n(ifrsResultPrev.totalDespesasOperacionais),
+        ebitda: n(ifrsResultPrev.ebitda),
+        ebitdaMargin: n(ifrsResultPrev.margemEBITDA),
+        excludedItems: [],
+        byGroup: {
+          commercial_expenses: n(ifrsResultPrev.despesasComerciais),
+          administrative_expenses: n(ifrsResultPrev.despesasAdministrativas),
+          operational_expenses: 0,
+        },
+      }
+    }
     const prevEntries = entries.filter(
-      (e) =>
-        e.competence_date >= previousPeriod.from &&
-        e.competence_date <= previousPeriod.to
+      (e) => e.competence_date >= previousPeriod.from && e.competence_date <= previousPeriod.to
     )
-    return calculateEBITDA(previousDre, prevEntries, chartAccounts)
-  }, [entries, chartAccounts, previousDre, previousPeriod])
+    const prevDre = calculateDRE(entries, chartAccounts, previousPeriod)
+    return calculateEBITDA(prevDre, prevEntries, chartAccounts)
+  }, [ifrsResultPrev, entries, chartAccounts, previousPeriod])
 
   const variation = useMemo(() => {
     if (previousEbitda.ebitda === 0) return 0

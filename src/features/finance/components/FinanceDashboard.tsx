@@ -23,6 +23,9 @@ import {
   getFinancialEntries,
   getBankAccounts,
 } from '../services/financeApi'
+import { getCorporateChart } from '../services/corporateChartApi'
+import { calculateIFRSDRE } from '../services/ifrsEngine'
+import type { ChartAccountV2 } from '../services/corporateChartApi'
 import {
   simulationChartAccounts,
   simulationFinancialEntries,
@@ -60,6 +63,7 @@ export default function FinanceDashboard({
 
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,14 +96,16 @@ export default function FinanceDashboard({
       }
 
       try {
-        const [accountsData, entriesData, banksData] = await Promise.all([
+        const [accountsData, entriesData, banksData, accountsV2Data] = await Promise.all([
           getChartAccounts(companyId),
           getFinancialEntries(companyId),
           getBankAccounts(companyId),
+          getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
         ])
         if (cancelled) return
         setEntries(entriesData)
         setChartAccounts(accountsData)
+        setChartAccountsV2(accountsV2Data)
         setBankAccounts(banksData)
       } catch (err) {
         if (cancelled) return
@@ -120,23 +126,57 @@ export default function FinanceDashboard({
     [startDate, endDate]
   )
 
+  const useIFRS = chartAccountsV2.length > 0
+
+  const ifrsResult = useMemo(
+    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, period) : null,
+    [entries, chartAccountsV2, period, useIFRS]
+  )
+
   const dre = useMemo(
-    () => calculateDRE(entries, chartAccounts, period),
-    [entries, chartAccounts, period]
+    () => useIFRS ? calculateDRE([], chartAccounts, period) : calculateDRE(entries, chartAccounts, period),
+    [entries, chartAccounts, period, useIFRS]
   )
 
   const filteredForEbitda = useMemo(
-    () =>
-      entries.filter(
-        (e) => e.competence_date >= startDate && e.competence_date <= endDate
-      ),
+    () => entries.filter((e) => e.competence_date >= startDate && e.competence_date <= endDate),
     [entries, startDate, endDate]
   )
 
-  const ebitda = useMemo(
-    () => calculateEBITDA(dre, filteredForEbitda, chartAccounts),
-    [dre, filteredForEbitda, chartAccounts]
-  )
+  const ebitda = useMemo(() => {
+    if (ifrsResult) {
+      const n = (d: { toNumber(): number }) => d.toNumber()
+      return {
+        netRevenue: n(ifrsResult.receitaLiquida),
+        cogs: n(ifrsResult.cpv),
+        grossProfit: n(ifrsResult.lucroBruto),
+        eligibleExpenses: n(ifrsResult.totalDespesasOperacionais),
+        ebitda: n(ifrsResult.ebitda),
+        ebitdaMargin: n(ifrsResult.margemEBITDA),
+        excludedItems: [],
+        byGroup: {},
+      }
+    }
+    return calculateEBITDA(dre, filteredForEbitda, chartAccounts)
+  }, [ifrsResult, dre, filteredForEbitda, chartAccounts])
+
+  const dreForDisplay = useMemo(() => {
+    if (ifrsResult) {
+      const n = (d: { toNumber(): number }) => d.toNumber()
+      return {
+        ...dre,
+        receitaBruta: n(ifrsResult.receitaBruta),
+        deducoes: n(ifrsResult.deducoes),
+        receitaLiquida: n(ifrsResult.receitaLiquida),
+        cmv: n(ifrsResult.cpv),
+        lucroBruto: n(ifrsResult.lucroBruto),
+        lucroLiquido: n(ifrsResult.lucroLiquido),
+        margemBruta: n(ifrsResult.margemBruta),
+        margemLiquida: n(ifrsResult.margemLiquida),
+      }
+    }
+    return dre
+  }, [ifrsResult, dre])
 
   const initialBalance = useMemo(
     () => bankAccounts.reduce((s, b) => s + b.current_balance, 0),
@@ -285,24 +325,24 @@ export default function FinanceDashboard({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <FinancialKpiCard
             title="Receita Bruta"
-            value={fmtBRL(dre.receitaBruta)}
+            value={fmtBRL(dreForDisplay.receitaBruta)}
             subtitle="Periodo selecionado"
           />
           <FinancialKpiCard
             title="Receita Liquida"
-            value={fmtBRL(dre.receitaLiquida)}
-            subtitle={`Deducoes: ${fmtBRL(dre.deducoes)}`}
+            value={fmtBRL(dreForDisplay.receitaLiquida)}
+            subtitle={`Deducoes: ${fmtBRL(dreForDisplay.deducoes)}`}
             variant="positive"
           />
           <FinancialKpiCard
             title="Lucro Bruto"
-            value={fmtBRL(dre.lucroBruto)}
-            subtitle={`Margem: ${fmtPct(dre.margemBruta)}`}
-            variant={dre.lucroBruto >= 0 ? 'positive' : 'negative'}
+            value={fmtBRL(dreForDisplay.lucroBruto)}
+            subtitle={`Margem: ${fmtPct(dreForDisplay.margemBruta)}`}
+            variant={dreForDisplay.lucroBruto >= 0 ? 'positive' : 'negative'}
           />
           <FinancialKpiCard
             title="Margem Bruta"
-            value={fmtPct(dre.margemBruta)}
+            value={fmtPct(dreForDisplay.margemBruta)}
             subtitle="Lucro bruto / Rec. liquida"
           />
         </div>
@@ -327,13 +367,13 @@ export default function FinanceDashboard({
           />
           <FinancialKpiCard
             title="Lucro Liquido"
-            value={fmtBRL(dre.lucroLiquido)}
+            value={fmtBRL(dreForDisplay.lucroLiquido)}
             subtitle="Resultado final do periodo"
-            variant={dre.lucroLiquido >= 0 ? 'positive' : 'negative'}
+            variant={dreForDisplay.lucroLiquido >= 0 ? 'positive' : 'negative'}
           />
           <FinancialKpiCard
             title="Margem Liquida"
-            value={fmtPct(dre.margemLiquida)}
+            value={fmtPct(dreForDisplay.margemLiquida)}
             subtitle="Lucro liquido / Rec. liquida"
           />
         </div>

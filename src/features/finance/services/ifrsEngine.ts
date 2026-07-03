@@ -150,32 +150,35 @@ export function calculateIFRSDRE(
     if (!account) continue
 
     const code = account.account_code
+    const atype = account.account_type
 
-    // REVENUE (classe 4)
+    // Roteamento por account_type (plano genérico) com fallback em account_code (plano IFRS 4.x/5.x)
     if (isAccountClass(account, 'REVENUE')) {
-      if (code.startsWith('4.1')) revenueEntries.push(entry)
+      if (atype === 'receita') revenueEntries.push(entry)
+      else if (atype === 'deducao') deductionEntries.push(entry)
+      else if (atype === 'receita_nao_op') nonOpRevenueEntries.push(entry)
+      // fallback código 4.x
+      else if (code.startsWith('4.1')) revenueEntries.push(entry)
       else if (code.startsWith('4.2')) deductionEntries.push(entry)
       else if (code.startsWith('4.4')) nonOpRevenueEntries.push(entry)
+      else revenueEntries.push(entry)
       continue
     }
 
-    // EXPENSE (classe 5)
     if (isAccountClass(account, 'EXPENSE')) {
-      if (code.startsWith('5.1')) {
-        if (isDAAccount(account)) daEntries.push(entry)
-        else cpvEntries.push(entry)
-      } else if (code.startsWith('5.3.1')) {
-        commercialEntries.push(entry)
-      } else if (code.startsWith('5.3.2')) {
-        if (isDAAccount(account)) daEntries.push(entry)
-        else adminEntries.push(entry)
-      } else if (code.startsWith('5.3.3')) {
-        financialExpenseEntries.push(entry)
-      } else if (code.startsWith('5.6')) {
-        nonOpExpenseEntries.push(entry)
-      } else if (code.startsWith('5.8')) {
-        taxEntries.push(entry)
-      }
+      if (isDAAccount(account)) { daEntries.push(entry); continue }
+      if (atype === 'cpv') cpvEntries.push(entry)
+      else if (atype === 'despesa_operacional') adminEntries.push(entry)
+      else if (atype === 'despesa_financeira') financialExpenseEntries.push(entry)
+      else if (atype === 'nao_operacional') nonOpExpenseEntries.push(entry)
+      // fallback código 5.x
+      else if (code.startsWith('5.1')) cpvEntries.push(entry)
+      else if (code.startsWith('5.3.1')) commercialEntries.push(entry)
+      else if (code.startsWith('5.3.2')) adminEntries.push(entry)
+      else if (code.startsWith('5.3.3')) financialExpenseEntries.push(entry)
+      else if (code.startsWith('5.6')) nonOpExpenseEntries.push(entry)
+      else if (code.startsWith('5.8')) taxEntries.push(entry)
+      else adminEntries.push(entry)
     }
   }
 
