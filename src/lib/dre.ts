@@ -64,7 +64,12 @@ export function calcDRE(
 
     // Conta V2 corporativa (chart_accounts_v2) — mapeada por account_type
     const v2acc = tx.chart_account_v2_id ? v2AccountMap.get(tx.chart_account_v2_id) : undefined
-    if (!v2acc) continue
+    if (!v2acc) {
+      // Fallback: classificar pelo type da transação quando não há conta vinculada
+      if (tx.type === 'receita') byType.receita.push(tx)
+      else if (tx.type === 'despesa') byType.despesa_operacional.push(tx)
+      continue
+    }
     switch (v2acc.account_type) {
       case 'receita':
       case 'receita_nao_op':
