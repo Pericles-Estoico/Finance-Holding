@@ -105,6 +105,7 @@ export default function ImportarPage() {
 
   const loadAccountsForCompany = async (companyId: string) => {
     const data = await getAccounts(companyId)
+    setAccounts(data)
     return data
   }
 

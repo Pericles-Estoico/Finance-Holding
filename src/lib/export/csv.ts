@@ -18,7 +18,7 @@ export function exportTransacoesCSV(
 ): void {
   const headers = row('Data', 'Tipo', 'Descrição', 'Empresa', 'Conta', 'Tipo de Conta', 'Canal', 'Valor (R$)', 'Simulação')
   const lines = transactions.map(tx => {
-    const acc = accountMap.get(tx.account_id)
+    const acc = accountMap.get(tx.account_id ?? '')
     const company = companyMap.get(tx.company_id)
     const valor = (tx.amount_cents / 100).toFixed(2).replace('.', ',')
     return row(
@@ -26,7 +26,7 @@ export function exportTransacoesCSV(
       tx.type === 'receita' ? 'Receita' : 'Despesa',
       tx.description,
       company?.name ?? tx.company_id,
-      acc ? `${acc.code} — ${acc.name}` : tx.account_id,
+      acc ? `${acc.code} — ${acc.name}` : (tx.account_id ?? ''),
       acc?.type ?? '',
       tx.channel ?? '',
       valor,

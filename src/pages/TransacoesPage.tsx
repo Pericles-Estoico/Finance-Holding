@@ -84,7 +84,7 @@ export default function TransacoesPage() {
     setEditingTx(tx)
     setForm({
       company_id: tx.company_id,
-      account_id: tx.account_id,
+      account_id: tx.account_id ?? '',
       type: tx.type,
       amount: (tx.amount_cents / 100).toFixed(2),
       description: tx.description,

@@ -179,7 +179,7 @@ export function gerarTransacoesPDF(
     startY: 38,
     head: [['Data', 'Tipo', 'Descrição', 'Empresa', 'Conta', 'Canal', 'Valor']],
     body: transactions.map(tx => {
-      const acc     = accountMap.get(tx.account_id)
+      const acc     = accountMap.get(tx.account_id ?? '')
       const company = companyMap.get(tx.company_id)
       return [
         tx.date,
