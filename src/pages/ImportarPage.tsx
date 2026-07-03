@@ -10,6 +10,8 @@ import { runOcr, fileToBase64 } from '../lib/api/ocr'
 import { openDrivePicker, downloadDriveFileAsBase64 } from '../lib/googleDrive'
 import { getAccounts } from '../lib/api/accounts'
 import { createTransaction } from '../lib/api/transactions'
+import { getCorporateChart } from '../features/finance/services/corporateChartApi'
+import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 import {
   checkProcessedFiles, processFile, getPendingClassifications,
   classifyPending, getDriveConfig, saveDriveConfig,
@@ -17,8 +19,6 @@ import {
 } from '../lib/api/driveImport'
 import type { AccountCategory, SaleChannel, PendingClassification } from '../types'
 import type { OcrParsed } from '../lib/api/ocr'
-import { getCorporateChart } from '../features/finance/services/corporateChartApi'
-import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 import { suggestCorporateAccount } from '../features/finance/services/ocrCorporateMapping'
 import CorporateAccountSelect from '../features/finance/components/CorporateAccountSelect'
 import OfxImportWizard from '../features/finance/components/OfxImportWizard'

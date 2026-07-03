@@ -34,7 +34,7 @@ export interface AccountCategory {
 export interface Transaction {
   id: string
   company_id: string
-  account_id: string | null
+  account_id?: string | null
   chart_account_v2_id?: string | null
   type: TransactionType
   amount_cents: number

@@ -104,21 +104,26 @@ export function calcDRE(
 
   // Drill-down por conta para cada grupo
   const drillDown = (txs: Transaction[]): DRELine[] => {
-    const grouped = new Map<string, { acc: AccountCategory; total: number }>()
+    const grouped = new Map<string, { label: string; code: string; total: number }>()
     for (const tx of txs) {
-      const acc = accountMap.get(tx.account_id)
-      if (!acc) continue
-      const cur = grouped.get(acc.id)
-      grouped.set(acc.id, {
-        acc,
+      const legacy = tx.account_id ? accountMap.get(tx.account_id) : undefined
+      const v2 = tx.chart_account_v2_id ? v2AccountMap.get(tx.chart_account_v2_id) : undefined
+      const id = legacy?.id ?? v2?.id
+      const label = legacy?.name ?? v2?.account_name ?? ''
+      const code = legacy?.code ?? v2?.account_code ?? ''
+      if (!id) continue
+      const cur = grouped.get(id)
+      grouped.set(id, {
+        label,
+        code,
         total: new Decimal(cur?.total ?? 0).plus(tx.amount_cents).toNumber(),
       })
     }
     return Array.from(grouped.values())
-      .sort((a, b) => a.acc.code.localeCompare(b.acc.code))
-      .map(({ acc, total }) => ({
-        code: acc.code,
-        label: acc.name,
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .map(({ code, label, total }) => ({
+        code,
+        label,
         amountCents: total,
         percentOfRevenue: calcPercent(total, receitaLiquida || receitaBruta || 1),
       }))

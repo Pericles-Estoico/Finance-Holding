@@ -23,6 +23,7 @@ export interface ChartAccountV2 {
 
 export type ChartAccountV2Insert = Omit<ChartAccountV2, 'id' | 'created_at' | 'updated_at'>
 
+
 export async function getCorporateChart(companyId: string): Promise<ChartAccountV2[]> {
   const { data, error } = await supabase
     .from('chart_accounts_v2')
