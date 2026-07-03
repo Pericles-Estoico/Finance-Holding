@@ -234,8 +234,13 @@ export default function ImportarPage() {
       return
     }
     try {
+      const isV2Account = corporateAccountsV2.some(a => a.id === form.account_id)
       await createTransaction({
-        company_id: form.company_id, account_id: form.account_id, type: form.type,
+        company_id: form.company_id,
+        ...(isV2Account
+          ? { chart_account_v2_id: form.account_id }
+          : { account_id: form.account_id }),
+        type: form.type,
         amount: form.amount, description: form.description, date: form.date,
         channel: form.channel || undefined, is_simulation: isSimulation,
       })
@@ -478,7 +483,7 @@ export default function ImportarPage() {
                 <div className="px-5 py-4 grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-gray-600 block mb-1">Tipo *</label>
-                    <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as 'receita' | 'despesa' }))}
+                    <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as 'receita' | 'despesa', account_id: '' }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="despesa">Despesa</option>
                       <option value="receita">Receita</option>
@@ -532,7 +537,9 @@ export default function ImportarPage() {
                   </label>
                   {corporateAccountsV2.length > 0 ? (
                     <CorporateAccountSelect
-                      accounts={corporateAccountsV2}
+                      accounts={corporateAccountsV2.filter(a =>
+                        form.type === 'receita' ? a.account_class === 'REVENUE' : a.account_class === 'EXPENSE'
+                      )}
                       value={form.account_id}
                       onChange={(id) => setForm(p => ({ ...p, account_id: id }))}
                       className="w-full"
@@ -731,7 +738,7 @@ export default function ImportarPage() {
                         <label className="text-xs text-gray-500 block mb-1">Tipo</label>
                         <select
                           value={pf.type}
-                          onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, type: e.target.value as 'receita' | 'despesa' } }))}
+                          onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, type: e.target.value as 'receita' | 'despesa', account_id: '' } }))}
                           className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="despesa">Despesa</option>
@@ -747,7 +754,9 @@ export default function ImportarPage() {
                         </label>
                         {corporateAccountsV2.length > 0 ? (
                           <CorporateAccountSelect
-                            accounts={corporateAccountsV2}
+                            accounts={corporateAccountsV2.filter(a =>
+                              pf.type === 'receita' ? a.account_class === 'REVENUE' : a.account_class === 'EXPENSE'
+                            )}
                             value={pf.account_id}
                             onChange={(id) => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: id } }))}
                             className="w-full text-xs py-1.5"
