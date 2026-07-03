@@ -325,6 +325,24 @@ supabase/
 
 > **CRÍTICO — simulationData.ts:** Toda vez que uma nova conta for adicionada via migration em `chart_accounts`, ela DEVE ser adicionada também em `simulationData.ts` (array `simulationChartAccounts`). Caso contrário, o Modo Simulação não exibirá a conta e o dropdown de Pró-labore não funcionará em simulação.
 
+### Estado atual do simulationChartAccounts (sincronizado em 2026-07-03)
+
+O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
+
+| Grupo | Contas |
+|-------|--------|
+| 1 Receitas | 1.1 a 1.6 (Shopee, ML, Shein, Loja Própria, Atacado, Outros Canais) |
+| 2 Deduções | 2.1 a 2.6 (Cancelamentos, Devoluções, Descontos, Cupons, Impostos s/ Venda, Taxas Marketplace) |
+| 3 CPV | 3.1 a 3.8 (Tecido, Aviamentos, Embalagem, Costura Int/Ext, Bordado, MO Direta, Perdas) |
+| 4 Comerciais | 4.1 a 4.5 (Comissão, Frete Subsidiado, Tráfego Pago, Influenciadores, Fotos) |
+| 5 Administrativas | 5.1 a 5.6 (Salários, Pró-labore, Contabilidade, Sistemas, Internet, Aluguel) |
+| 6 Operacionais | 6.1 a 6.7 (Energia, Manutenção, EPIs, Limpeza, Combustível Emp, Combustível Terc, Despesas Viagem) |
+| 7 Depreciação | 7.1 a 7.3 (Máquinas, Equipamentos, Amortização Sistemas) |
+| 8 Financeiro | 8.1 a 8.5 (Juros Rec, Juros Pag, Tarifas, Multas, Encargos) |
+| 9 Impostos | 9.1 IRPJ, 9.2 CSLL |
+| 10 Investimentos | 10.1 a 10.3 (Máquina, Equipamento, Reforma) |
+| 11 Sócios | 11.1 Aporte, 11.2 Distribuição, 11.3 Retirada Extraordinária |
+
 ---
 
 ## 13. Deploy
@@ -349,4 +367,5 @@ supabase/
 | 2026-07 | `dre.*` no JSX em vez de `dreForDisplay.*` | Refatoração incompleta do FinanceDashboard | `FinanceDashboard.tsx` |
 | 2026-07 | `calcDRE` ignorava transações sem conta vinculada | Sem fallback por `tx.type` quando `account_id` e `chart_account_v2_id` ambos null | `dre.ts` |
 | 2026-07 | Despesas de Viagem e Pró-labore não apareciam no formulário simples | `simulationData.ts` não tinha as contas 6.5, 6.6, 6.7 e 5.2 — Modo Simulação ignora Supabase e usa dados hardcoded | `simulationData.ts` |
+| 2026-07 | Modo Simulação com apenas ~30% das contas reais disponíveis | `simulationChartAccounts` era subset parcial — faltavam 27 contas (grupos completos 1.3/1.5/1.6, 2.1-2.5, 3.2-3.8, 4.2/4.4/4.5, 5.3/5.5, 6.3/6.4, 7.2/7.3, 8.1/8.3-8.5, 9.2, 10 inteiro, 11 inteiro). Corrigido com sincronização total. | `simulationData.ts` |
 | 2026-07 | Despesas de Viagem (3.8.5) não aparecia na página Importar | Conta faltava em `chart_accounts_v2` (tabela IFRS, códigos 3.x.x). As migrations 013 e 014 adicionaram na tabela errada (`chart_accounts`). A migration 015 corrigiu inserindo em `chart_accounts_v2`. | `supabase/migrations/015_add_travel_expenses_v2.sql` |
