@@ -1,7 +1,8 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { DREResult } from '../dre'
-import type { Transaction, AccountCategory, Company } from '../../types'
+import type { Transaction, Company } from '../../types'
+import type { ChartAccount } from '../../features/finance/types/finance.types'
 
 // ─── Paleta DESIGN.md ────────────────────────────────────────────────────────
 const C = {
@@ -160,7 +161,7 @@ export function gerarDREPDF(dre: DREResult, company: Company | null, period: str
 
 export function gerarTransacoesPDF(
   transactions: Transaction[],
-  accountMap: Map<string, AccountCategory>,
+  accountMap: Map<string, ChartAccount>,
   companyMap: Map<string, Company>,
   periodo: string,
 ): void {
@@ -179,7 +180,7 @@ export function gerarTransacoesPDF(
     startY: 38,
     head: [['Data', 'Tipo', 'Descrição', 'Empresa', 'Conta', 'Canal', 'Valor']],
     body: transactions.map(tx => {
-      const acc     = accountMap.get(tx.account_id ?? '')
+      const acc     = accountMap.get(tx.chart_account_id ?? tx.account_id ?? '')
       const company = companyMap.get(tx.company_id)
       return [
         tx.date,

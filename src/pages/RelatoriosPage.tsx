@@ -6,11 +6,13 @@ import {
 import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
 import { getTransactions } from '../lib/api/transactions'
+import { getChartAccounts } from '../features/finance/services/financeApi'
 import { getAccounts } from '../lib/api/accounts'
 import { calcDRE } from '../lib/dre'
 import { gerarDREPDF, gerarTransacoesPDF, gerarResumoExecutivoPDF } from '../lib/export/pdf'
 import { exportTransacoesCSV, exportDRECSV } from '../lib/export/csv'
 import type { Transaction, AccountCategory } from '../types'
+import type { ChartAccount } from '../features/finance/types/finance.types'
 import { getCorporateChart } from '../features/finance/services/corporateChartApi'
 import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 
@@ -94,8 +96,9 @@ export default function RelatoriosPage() {
   const [generating, setGenerating] = useState<string | null>(null)
   const [lastGenerated, setLastGenerated] = useState<string | null>(null)
 
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [accounts, setAccounts]         = useState<AccountCategory[]>([])
+  const [transactions, setTransactions]     = useState<Transaction[]>([])
+  const [accounts, setAccounts]             = useState<AccountCategory[]>([])  // para calcDRE (legado)
+  const [chartAccounts, setChartAccounts]   = useState<ChartAccount[]>([])     // para exports (plano unificado)
   const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
 
   const companyIds = activeCompanyId === 'consolidated'
@@ -107,12 +110,14 @@ export default function RelatoriosPage() {
     setLoading(true)
     try {
       const { from, to } = getRange(period, customFrom, customTo)
-      const [accs, v2Accs, txs] = await Promise.all([
+      const [accs, newAccs, v2Accs, txs] = await Promise.all([
         Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat()),
+        Promise.all(companyIds.map(id => getChartAccounts(id))).then(r => r.flat()),
         Promise.all(companyIds.map(id => getCorporateChart(id))).then(r => r.flat()).catch(() => [] as ChartAccountV2[]),
         getTransactions({ companyIds, isSimulation, dateFrom: from, dateTo: to }),
       ])
       setAccounts(accs)
+      setChartAccounts(newAccs)
       setChartAccountsV2(v2Accs)
       setTransactions(txs)
     } finally { setLoading(false) }
@@ -122,7 +127,7 @@ export default function RelatoriosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     , [activeCompanyId, period, customFrom, customTo, isSimulation])
 
-  const accountMap = useMemo(() => new Map(accounts.map(a => [a.id, a])), [accounts])
+  const accountMap = useMemo(() => new Map(chartAccounts.map(a => [a.id, a])), [chartAccounts])
   const companyMap = useMemo(() => new Map(companies.map(c => [c.id, c])), [companies])
   const activeCompany = companies.find(c => c.id === activeCompanyId) ?? null
 

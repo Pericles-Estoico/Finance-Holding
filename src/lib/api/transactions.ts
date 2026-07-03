@@ -36,6 +36,7 @@ export async function getTransactions(filters: TransactionFilters): Promise<Tran
 export interface TransactionPayload {
   company_id: string
   account_id?: string
+  chart_account_id?: string
   chart_account_v2_id?: string
   type: 'receita' | 'despesa'
   amount: string | number

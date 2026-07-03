@@ -1,4 +1,5 @@
-import type { Transaction, AccountCategory, Company } from '../../types'
+import type { Transaction, Company } from '../../types'
+import type { ChartAccount } from '../../features/finance/types/finance.types'
 
 function esc(v: string | number | undefined | null): string {
   const s = String(v ?? '')
@@ -13,12 +14,13 @@ function row(...cols: (string | number | undefined | null)[]): string {
 
 export function exportTransacoesCSV(
   transactions: Transaction[],
-  accountMap: Map<string, AccountCategory>,
+  accountMap: Map<string, ChartAccount>,
   companyMap: Map<string, Company>,
 ): void {
-  const headers = row('Data', 'Tipo', 'Descrição', 'Empresa', 'Conta', 'Tipo de Conta', 'Canal', 'Valor (R$)', 'Simulação')
+  const headers = row('Data', 'Tipo', 'Descrição', 'Empresa', 'Conta', 'Grupo DRE', 'Canal', 'Valor (R$)', 'Simulação')
   const lines = transactions.map(tx => {
-    const acc = accountMap.get(tx.account_id ?? '')
+    const accId = tx.chart_account_id ?? tx.account_id ?? ''
+    const acc = accountMap.get(accId)
     const company = companyMap.get(tx.company_id)
     const valor = (tx.amount_cents / 100).toFixed(2).replace('.', ',')
     return row(
@@ -26,8 +28,8 @@ export function exportTransacoesCSV(
       tx.type === 'receita' ? 'Receita' : 'Despesa',
       tx.description,
       company?.name ?? tx.company_id,
-      acc ? `${acc.code} — ${acc.name}` : (tx.account_id ?? ''),
-      acc?.type ?? '',
+      acc ? `${acc.code} - ${acc.name}` : '',
+      acc?.dre_group ?? '',
       tx.channel ?? '',
       valor,
       tx.is_simulation ? 'Sim' : 'Não',

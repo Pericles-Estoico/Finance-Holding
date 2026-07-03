@@ -224,7 +224,7 @@ async function transactionsAsEntries(
   return (data as Array<{
     id: string; company_id: string; type: string; amount_cents: number;
     description: string; date: string; channel: string | null;
-    account_id: string | null; chart_account_v2_id: string | null; created_at: string;
+    account_id: string | null; chart_account_id: string | null; chart_account_v2_id: string | null; created_at: string;
   }>).map(tx => ({
     id: `tx_${tx.id}`,
     type: (tx.type === 'receita' ? 'receivable' : 'payable') as 'receivable' | 'payable',
@@ -234,7 +234,7 @@ async function transactionsAsEntries(
     due_date: tx.date,
     paid_or_received_date: tx.date,
     status: (tx.type === 'receita' ? 'received' : 'paid') as 'paid' | 'received',
-    chart_account_id: tx.account_id ?? '',
+    chart_account_id: tx.chart_account_id ?? tx.account_id ?? '',
     chart_account_v2_id: tx.chart_account_v2_id ?? null,
     cost_center_id: null,
     channel: tx.channel ?? null,
@@ -266,7 +266,7 @@ export async function getConsolidatedEntries(): Promise<FinancialEntry[]> {
   const txEntries = (txs.data ?? []).map((tx: {
     id: string; company_id: string; type: string; amount_cents: number;
     description: string; date: string; channel: string | null;
-    account_id: string | null; chart_account_v2_id: string | null; created_at: string;
+    account_id: string | null; chart_account_id: string | null; chart_account_v2_id: string | null; created_at: string;
   }) => ({
     id: `tx_${tx.id}`,
     type: (tx.type === 'receita' ? 'receivable' : 'payable') as 'receivable' | 'payable',
@@ -276,7 +276,7 @@ export async function getConsolidatedEntries(): Promise<FinancialEntry[]> {
     due_date: tx.date,
     paid_or_received_date: tx.date,
     status: (tx.type === 'receita' ? 'received' : 'paid') as 'paid' | 'received',
-    chart_account_id: tx.account_id ?? '',
+    chart_account_id: tx.chart_account_id ?? tx.account_id ?? '',
     chart_account_v2_id: tx.chart_account_v2_id ?? null,
     cost_center_id: null, channel: tx.channel ?? null, company_id: tx.company_id,
     counterparty: null, document_number: null, payment_method: null,

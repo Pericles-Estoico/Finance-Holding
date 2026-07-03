@@ -4,11 +4,12 @@ import { exportTransacoesCSV } from '../lib/export/csv'
 import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
 import { getTransactions, createTransaction, updateTransaction, deleteTransaction } from '../lib/api/transactions'
-import { getAccounts } from '../lib/api/accounts'
+import { getChartAccounts } from '../features/finance/services/financeApi'
 import { formatBRL } from '../lib/currency'
 import Modal from '../components/ui/Modal'
 import BottomSheet from '../components/ui/BottomSheet'
-import type { Transaction, AccountCategory, SaleChannel } from '../types'
+import type { Transaction, SaleChannel } from '../types'
+import type { ChartAccount } from '../features/finance/types/finance.types'
 
 const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: 'amazon',        label: 'Amazon' },
@@ -21,7 +22,7 @@ const CHANNELS: { value: SaleChannel; label: string }[] = [
 
 const emptyForm = {
   company_id: '',
-  account_id: '',
+  chart_account_id: '',
   type: 'despesa' as 'receita' | 'despesa',
   amount: '',
   description: '',
@@ -36,8 +37,8 @@ export default function TransacoesPage() {
   const { companies, activeCompanyId } = useCompany()
   const { isSimulation } = useSimulation()
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [accounts, setAccounts]         = useState<AccountCategory[]>([])
-  const [allAccounts, setAllAccounts]   = useState<AccountCategory[]>([])
+  const [accounts, setAccounts]         = useState<ChartAccount[]>([])
+  const [allAccounts, setAllAccounts]   = useState<ChartAccount[]>([])
   const [showModal, setShowModal]       = useState(false)
   const [editingTx, setEditingTx]       = useState<Transaction | null>(null)
   const [form, setForm]                 = useState(emptyForm)
@@ -53,15 +54,15 @@ export default function TransacoesPage() {
     if (!companyIds.length) return
     const [data, accs] = await Promise.all([
       getTransactions({ companyIds, isSimulation }),
-      Promise.all(companyIds.map(id => getAccounts(id))).then(r => r.flat()),
+      Promise.all(companyIds.map(id => getChartAccounts(id))).then(r => r.flat()),
     ])
     setTransactions(data)
-    setAllAccounts(accs)
+    setAllAccounts(accs) // todas as contas (para lookup no mapa de exibição)
   }
 
   const loadAccounts = async (companyId: string) => {
-    const data = await getAccounts(companyId)
-    setAccounts(data)
+    const data = await getChartAccounts(companyId)
+    setAccounts(data.filter(a => a.is_active && a.level > 1))
   }
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function TransacoesPage() {
     setEditingTx(tx)
     setForm({
       company_id: tx.company_id,
-      account_id: tx.account_id ?? '',
+      chart_account_id: tx.chart_account_id ?? '',
       type: tx.type,
       amount: (tx.amount_cents / 100).toFixed(2),
       description: tx.description,
@@ -97,21 +98,21 @@ export default function TransacoesPage() {
 
   const handleSave = async () => {
     setError(null)
-    if (!form.company_id || !form.account_id || !form.amount || !form.description || !form.date) {
+    if (!form.company_id || !form.chart_account_id || !form.amount || !form.description || !form.date) {
       setError('Preencha todos os campos obrigatórios.')
       return
     }
     setLoading(true)
     try {
       const payload = {
-        company_id:    form.company_id,
-        account_id:    form.account_id,
-        type:          form.type,
-        amount:        form.amount,
-        description:   form.description,
-        date:          form.date,
-        channel:       form.channel || undefined,
-        is_simulation: isSimulation,
+        company_id:       form.company_id,
+        chart_account_id: form.chart_account_id,
+        type:             form.type,
+        amount:           form.amount,
+        description:      form.description,
+        date:             form.date,
+        channel:          form.channel || undefined,
+        is_simulation:    isSimulation,
       }
       if (editingTx) {
         await updateTransaction(editingTx.id, payload)
@@ -168,16 +169,16 @@ export default function TransacoesPage() {
       </div>
       <div>
         <label className={LABEL_CLS}>Empresa *</label>
-        <select value={form.company_id} onChange={e => setForm(p => ({ ...p, company_id: e.target.value, account_id: '' }))} className={INPUT_CLS}>
+        <select value={form.company_id} onChange={e => setForm(p => ({ ...p, company_id: e.target.value, chart_account_id: '' }))} className={INPUT_CLS}>
           <option value="">Selecione...</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
       <div>
         <label className={LABEL_CLS}>Conta do Plano *</label>
-        <select value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))} className={INPUT_CLS} disabled={!form.company_id}>
+        <select value={form.chart_account_id} onChange={e => setForm(p => ({ ...p, chart_account_id: e.target.value }))} className={INPUT_CLS} disabled={!form.company_id}>
           <option value="">Selecione a conta...</option>
-          {accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+          {accounts.map(a => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
         </select>
       </div>
       <div>
