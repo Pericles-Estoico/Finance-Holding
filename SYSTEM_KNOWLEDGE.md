@@ -1,6 +1,6 @@
 # SYSTEM_KNOWLEDGE.md
 > Documento vivo de conhecimento do sistema Finance-Holding.
-> Atualizado em: 2026-07-03
+> Atualizado em: 2026-07-03 (fix falso alerta Drive import)
 > **Objetivo:** preservar decisões técnicas, bugs corrigidos e padrões estabelecidos para evitar regressões.
 
 ---
@@ -287,6 +287,8 @@ Ao fazer qualquer alteração nos engines de cálculo, valide:
 - [ ] Modo Simulação: mesmas contas acima aparecem em `simulationData.ts`
 - [ ] Página Importar: Despesas de Viagem (3.8.5) aparece no dropdown `CorporateAccountSelect` (tabela `chart_accounts_v2`)
 - [ ] TypeScript sem erros: `npx tsc --noEmit`
+- [ ] Lançamentos importados via Google Drive: coluna CONTA exibe o nome da conta v2 (não "-")
+- [ ] Lançamentos importados via Google Drive: **nenhum** alerta vermelho de "sem conta contábil" para entradas com `chart_account_v2_id` preenchido
 
 ---
 
@@ -371,3 +373,4 @@ O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 | 2026-07 | Dropdown de beneficiário não aparecia ao selecionar Pró-labore | Regex `/pro.?labore/i` não combina com "Pró-labore" porque `ó` (U+00F3) ≠ `o`. Corrigido para `/pr[oó].?labore/i` | `FinancialEntryForm.tsx` |
 | 2026-07 | Modo Simulação com apenas ~30% das contas reais disponíveis | `simulationChartAccounts` era subset parcial — faltavam 27 contas (grupos completos 1.3/1.5/1.6, 2.1-2.5, 3.2-3.8, 4.2/4.4/4.5, 5.3/5.5, 6.3/6.4, 7.2/7.3, 8.1/8.3-8.5, 9.2, 10 inteiro, 11 inteiro). Corrigido com sincronização total. | `simulationData.ts` |
 | 2026-07 | Despesas de Viagem (3.8.5) não aparecia na página Importar | Conta faltava em `chart_accounts_v2` (tabela IFRS, códigos 3.x.x). As migrations 013 e 014 adicionaram na tabela errada (`chart_accounts`). A migration 015 corrigiu inserindo em `chart_accounts_v2`. | `supabase/migrations/015_add_travel_expenses_v2.sql` |
+| 2026-07 | Falso alerta "Lançamentos sem conta contábil vinculada" e coluna CONTA mostrando "-" em entradas importadas via Google Drive | `FinancialDataHealthCheck` só verificava `chart_account_id` (tabela simples). Entradas do Drive usam `chart_account_v2_id` (tabela IFRS) e sempre têm `chart_account_id = null`. Solução: HealthCheck passou a aceitar `chartAccountsV2` prop e só alerta quando AMBOS os campos são nulos; `FinancialEntriesTable` exibe nome da conta v2 como fallback na coluna Conta; `FinancialEntriesPage` carrega e propaga `chartAccountsV2` para ambos os filhos. | `FinancialDataHealthCheck.tsx`, `FinancialEntriesTable.tsx`, `FinancialEntriesPage.tsx` |
