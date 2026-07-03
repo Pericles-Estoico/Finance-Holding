@@ -129,8 +129,8 @@ export default function FinanceDashboard({
   const useIFRS = chartAccountsV2.length > 0
 
   const ifrsResult = useMemo(
-    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, period) : null,
-    [entries, chartAccountsV2, period, useIFRS]
+    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, period, chartAccounts) : null,
+    [entries, chartAccounts, chartAccountsV2, period, useIFRS]
   )
 
   const dre = useMemo(

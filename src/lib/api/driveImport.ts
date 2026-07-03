@@ -59,7 +59,8 @@ export async function getPendingClassifications(companyId: string): Promise<Pend
 export async function classifyPending(params: {
   pending_id: string
   company_id: string
-  account_id: string
+  account_id?: string
+  chart_account_id?: string
   type: 'receita' | 'despesa'
   save_rule: boolean
 }): Promise<{ transaction_id: string }> {

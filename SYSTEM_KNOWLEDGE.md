@@ -1,6 +1,6 @@
 # SYSTEM_KNOWLEDGE.md
 > Documento vivo de conhecimento do sistema Finance-Holding.
-> Atualizado em: 2026-07-03 (fix falso alerta Drive import)
+> Atualizado em: 2026-07-03 (unificação plano de contas + Finance Executivo com chart_account_id)
 > **Objetivo:** preservar decisões técnicas, bugs corrigidos e padrões estabelecidos para evitar regressões.
 
 ---
@@ -13,17 +13,19 @@
 - **URL produção:** `financedre.com.br`
 - **Repositório:** `Pericles-Estoico/Finance-Holding` (GitHub)
 
-### Dois Sistemas de Dados Paralelos
+### Três Sistemas de Contas (estado atual — 2026-07-03)
 
-O projeto tem **dois sistemas de dados que coexistem** e NÃO devem ser confundidos:
+O projeto tem **três tabelas de plano de contas** que coexistem:
 
-| Sistema | Tabelas | Campo de vínculo | Engine de cálculo |
-|---------|---------|-----------------|-------------------|
-| **Legado** | `chart_of_accounts` + `transactions` | `account_id` | `calcDRE()` em `src/lib/dre.ts` |
-| **V2 Corporativo** | `chart_accounts_v2` + `transactions` | `chart_account_v2_id` (nullable) | `calculateIFRSDRE()` em `ifrsEngine.ts` |
-| **Finance Executivo** | `chart_accounts` + `financial_entries` | `chart_account_id` | `calculateDRE()` + `calculateIFRSDRE()` |
+| Tabela | Códigos | Quem usa | Campo vínculo em `transactions` |
+|--------|---------|----------|--------------------------------|
+| `chart_of_accounts` | Legado (Amazon/Shopee/B2B) | ninguém (depreciado) | `account_id` (legado, não usar) |
+| `chart_accounts` | 1–11 grupos gerenciais | Transações, Lançamentos, Importar | `chart_account_id` ← **campo padrão atual** |
+| `chart_accounts_v2` | IFRS (3.x.x / 4.x / 5.x) | OFX ImportWizard (legado) | `chart_account_v2_id` (nullable) |
 
-> **CRÍTICO:** `chart_account_v2_id` em `transactions` é `null` para todos os registros existentes (nunca foi backfillado). O sistema deve funcionar mesmo com esse campo nulo.
+> **REGRA ATUAL:** Toda nova transação deve salvar em `chart_account_id` (tabela `chart_accounts`). O campo `account_id` (legado) e `chart_account_v2_id` existem apenas por compatibilidade com dados antigos.
+
+> **CRÍTICO:** `chart_account_v2_id` em `transactions` é `null` para a maioria dos registros. O sistema deve funcionar mesmo com esse campo nulo — fallback por `type` garante isso.
 
 ---
 
@@ -38,11 +40,25 @@ O projeto tem **dois sistemas de dados que coexistem** e NÃO devem ser confundi
 
 ### 2.2 `calculateIFRSDRE()` — `src/features/finance/services/ifrsEngine.ts`
 - Usado pelo **Finance Executivo** (todas as 9 abas)
-- Recebe `FinancialEntry[]`, `ChartAccountV2[]`, `{ from, to }`
+- Assinatura atual: `calculateIFRSDRE(entries, v2Accounts, period, unifiedAccounts?)`
+- `unifiedAccounts` é o plano `chart_accounts` (1–11 grupos) — passado por `DreScreen`, `FinanceDashboard`, `EbitdaScreen`
+- **Hierarquia de classificação** (por entrada):
+  1. `chart_account_v2_id` → classifica pelo plano IFRS (account_type / account_code)
+  2. `chart_account_id` + `dre_group` → classifica pelo plano unificado (1–11) **← novo**
+  3. Fallback por `entry.type`: `receivable` → Receita Bruta, `payable` → Despesas Adm.
 - **ATENÇÃO:** O filtro original exigia `e.chart_account_v2_id` não-nulo → causava zeros. **Removido.**
-- Fallback implementado: quando `chart_account_v2_id` é null, classifica por `entry.type`:
-  - `'receivable'` → `revenueEntries`
-  - `'payable'` → `adminEntries`
+- **Mapeamento `dre_group` → bucket DRE:**
+
+| `dre_group` | Bucket |
+|-------------|--------|
+| `gross_revenue` | Receita Bruta |
+| `revenue_deductions` | Deduções |
+| `cogs` | CMV |
+| `commercial_expenses` | Despesas Comerciais |
+| `administrative_expenses` / `operational_expenses` | Despesas Administrativas |
+| `depreciation_amortization` | D&A |
+| `financial_result` | Resultado Financeiro |
+| `taxes_on_profit` | Impostos |
 
 ### 2.3 `calculateDRE()` — `src/features/finance/services/financeCalculations.ts`
 - Engine legada do Finance Executivo
@@ -57,11 +73,12 @@ A bridge está em `src/features/finance/services/financeApi.ts` → função `tr
 
 ```typescript
 // Campos mapeados de Transaction → FinancialEntry:
-// tx.amount_cents / 100  → entry.amount
-// tx.type === 'receita'  → entry.type = 'receivable'
-// tx.type === 'despesa'  → entry.type = 'payable'
-// tx.date               → entry.competence_date + due_date
-// tx.chart_account_v2_id → entry.chart_account_v2_id
+// tx.amount_cents / 100               → entry.amount
+// tx.type === 'receita'               → entry.type = 'receivable'
+// tx.type === 'despesa'               → entry.type = 'payable'
+// tx.date                             → entry.competence_date + due_date
+// tx.chart_account_id ?? tx.account_id → entry.chart_account_id  ← preferência ao campo unificado
+// tx.chart_account_v2_id              → entry.chart_account_v2_id
 ```
 
 > **Nunca remova ou altere a bridge sem testar todas as 9 abas do Finance Executivo.**
@@ -170,17 +187,21 @@ const dreForDisplay = useMemo(() => {
 | `013_add_fuel_to_chart_accounts.sql` | Adiciona 6.5 Combustível Empresa e 6.6 Combustível Terceiros em `chart_accounts` (tabela do formulário de lançamentos) |
 | `014_add_travel_expenses.sql` | Adiciona 6.7 Despesas de Viagem em `chart_accounts` (tabela do formulário de lançamentos simples) |
 | `015_add_travel_expenses_v2.sql` | Adiciona **3.8.5 Despesas de Viagem** em `chart_accounts_v2` (tabela IFRS usada pela página Importar via `CorporateAccountSelect.tsx`) |
+| `016_add_chart_account_id_to_transactions.sql` | Adiciona coluna `chart_account_id uuid` (FK para `chart_accounts`) em `transactions` — campo padrão para novos lançamentos |
+| `017_add_chart_account_id_to_payee_rules.sql` | Adiciona `chart_account_id` em `payee_account_rules` e torna `account_id` nullable — suporta regras de payee com plano unificado |
 
 > **Como aplicar nova migration:** criar arquivo `0NN_*.sql` e executar via `supabase db push` após `supabase link --project-ref tkvlzjvaazhjbxwsnywc`.
 
-### CRÍTICO — Duas tabelas de contas: não confundir
+### CRÍTICO — Plano de contas unificado (estado atual)
 
-| Tabela | Códigos | Componente que usa | Página |
-|--------|---------|-------------------|--------|
-| `chart_accounts` | 1 a 11 (simples, ex: 6.7) | `FinancialEntryForm.tsx` | Lançamentos |
-| `chart_accounts_v2` | IFRS (ex: 3.8.5) | `CorporateAccountSelect.tsx` | Importar |
+| Tabela | Códigos | Quem usa | Campo salvo |
+|--------|---------|----------|------------|
+| `chart_accounts` | 1–11 gerenciais | Lançamentos, **Transações**, **Importar** | `chart_account_id` ← **padrão** |
+| `chart_accounts_v2` | IFRS (3.x.x/4.x/5.x) | OFX ImportWizard (legado) | `chart_account_v2_id` |
 
-Ao adicionar nova conta, **adicionar nas duas tabelas** se necessário, além de `simulationData.ts`.
+A página **Importar** foi unificada em 2026-07-03: o seletor de conta agora sempre mostra `chart_accounts` (1–11) e salva em `chart_account_id`. O `CorporateAccountSelect` (v2 IFRS) foi removido do fluxo manual e de Drive.
+
+Ao adicionar nova conta, **adicionar em `chart_accounts`** e também em `simulationData.ts`.
 
 ### Conta Pró-Labore
 - **Código:** `5.2` (migration 004) / `5.3.2.1.6` (migration 007)
@@ -247,12 +268,19 @@ const n = (d: { toNumber(): number }) => d.toNumber()
 const n = (d: any) => d.toNumber()
 ```
 
-### Sempre use fallback por `type` quando conta é null
+### Hierarquia de classificação no `ifrsEngine` — nunca inverter a ordem
 ```typescript
-// Em qualquer engine de classificação:
+// 1º tenta chart_account_v2_id (IFRS)
 if (!entry.chart_account_v2_id) {
-  if (entry.type === 'receivable') revenueEntries.push(entry)
-  else if (entry.type === 'payable') adminEntries.push(entry)
+  // 2º tenta chart_account_id + dre_group (plano unificado)
+  const unified = entry.chart_account_id ? unifiedMap?.get(entry.chart_account_id) : undefined
+  if (unified?.dre_group) {
+    // classifica por switch(dre_group)
+  } else {
+    // 3º fallback por type
+    if (entry.type === 'receivable') revenueEntries.push(entry)
+    else if (entry.type === 'payable') adminEntries.push(entry)
+  }
   continue
 }
 ```
@@ -374,3 +402,6 @@ O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 | 2026-07 | Modo Simulação com apenas ~30% das contas reais disponíveis | `simulationChartAccounts` era subset parcial — faltavam 27 contas (grupos completos 1.3/1.5/1.6, 2.1-2.5, 3.2-3.8, 4.2/4.4/4.5, 5.3/5.5, 6.3/6.4, 7.2/7.3, 8.1/8.3-8.5, 9.2, 10 inteiro, 11 inteiro). Corrigido com sincronização total. | `simulationData.ts` |
 | 2026-07 | Despesas de Viagem (3.8.5) não aparecia na página Importar | Conta faltava em `chart_accounts_v2` (tabela IFRS, códigos 3.x.x). As migrations 013 e 014 adicionaram na tabela errada (`chart_accounts`). A migration 015 corrigiu inserindo em `chart_accounts_v2`. | `supabase/migrations/015_add_travel_expenses_v2.sql` |
 | 2026-07 | Falso alerta "Lançamentos sem conta contábil vinculada" e coluna CONTA mostrando "-" em entradas importadas via Google Drive | `FinancialDataHealthCheck` só verificava `chart_account_id` (tabela simples). Entradas do Drive usam `chart_account_v2_id` (tabela IFRS) e sempre têm `chart_account_id = null`. Solução: HealthCheck passou a aceitar `chartAccountsV2` prop e só alerta quando AMBOS os campos são nulos; `FinancialEntriesTable` exibe nome da conta v2 como fallback na coluna Conta; `FinancialEntriesPage` carrega e propaga `chartAccountsV2` para ambos os filhos. | `FinancialDataHealthCheck.tsx`, `FinancialEntriesTable.tsx`, `FinancialEntriesPage.tsx` |
+| 2026-07 | Tela Transações usava plano legado (`chart_of_accounts`), Lançamentos usava plano novo (`chart_accounts`) — dois planos diferentes na mesma sessão | `TransacoesPage` chamava `getAccounts()` → `chart_of_accounts`. Unificado para `getChartAccounts()` → `chart_accounts` (1–11). Migration 016 adicionou `chart_account_id` em `transactions`. Bridge `transactionsAsEntries` atualizada para preferir `chart_account_id`. Exports (PDF/CSV) atualizados para `ChartAccount`. | `TransacoesPage.tsx`, `financeApi.ts`, `csv.ts`, `pdf.ts`, migration 016 |
+| 2026-07 | Página Importar atribuía conta em formato IFRS (`chart_account_v2_id`) no fluxo manual e Drive, exigindo segunda atribuição em Lançamentos | `ImportarPage` usava `CorporateAccountSelect` (v2 IFRS). Substituído por `<select>` com `chart_accounts` (1–11). `handleConfirm` salva `chart_account_id`. `handleClassify` envia `chart_account_id`. Backend `classify.ts` atualizado para aceitar `chart_account_id`. Migration 017 adicionou `chart_account_id` em `payee_account_rules`. | `ImportarPage.tsx`, `classify.ts`, `driveImport.ts`, migration 017 |
+| 2026-07 | Finance Executivo DRE não usava `chart_account_id` para classificação — entradas com plano unificado (1–11) caíam todas em "Despesas Administrativas" | `ifrsEngine.calculateIFRSDRE` só entendia `chart_account_v2_id`. Adicionado 4º parâmetro `unifiedAccounts?: ChartAccount[]` com mapeamento de `dre_group` para buckets DRE. `DreScreen`, `FinanceDashboard` e `EbitdaScreen` agora passam `chartAccounts` ao engine. | `ifrsEngine.ts`, `DreScreen.tsx`, `FinanceDashboard.tsx`, `EbitdaScreen.tsx` |

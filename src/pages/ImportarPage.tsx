@@ -8,7 +8,6 @@ import { useSimulation } from '../contexts/SimulationContext'
 import { useAuth } from '../contexts/AuthContext'
 import { runOcr, fileToBase64 } from '../lib/api/ocr'
 import { openDrivePicker, downloadDriveFileAsBase64 } from '../lib/googleDrive'
-import { getAccounts } from '../lib/api/accounts'
 import { createTransaction } from '../lib/api/transactions'
 import { getCorporateChart } from '../features/finance/services/corporateChartApi'
 import type { ChartAccountV2 } from '../features/finance/services/corporateChartApi'
@@ -17,12 +16,10 @@ import {
   classifyPending, getDriveConfig, saveDriveConfig,
   listFolderFilesServer, downloadDriveFileServer,
 } from '../lib/api/driveImport'
-import type { AccountCategory, SaleChannel, PendingClassification } from '../types'
+import type { SaleChannel, PendingClassification } from '../types'
 import type { OcrParsed } from '../lib/api/ocr'
-import { suggestCorporateAccount } from '../features/finance/services/ocrCorporateMapping'
-import CorporateAccountSelect from '../features/finance/components/CorporateAccountSelect'
 import OfxImportWizard from '../features/finance/components/OfxImportWizard'
-import { getFinancialEntries } from '../features/finance/services/financeApi'
+import { getChartAccounts } from '../features/finance/services/financeApi'
 import type { ChartAccount } from '../features/finance/types/finance.types'
 
 const CHANNELS: { value: SaleChannel; label: string }[] = [
@@ -75,7 +72,6 @@ export default function ImportarPage() {
   const [processing, setProcessing] = useState('')
   const [rawText, setRawText] = useState('')
   const [isMock, setIsMock] = useState(false)
-  const [accounts, setAccounts] = useState<AccountCategory[]>([])
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<ValidationForm>({
     description: '', date: '', amount: '', account_id: '',
@@ -92,10 +88,9 @@ export default function ImportarPage() {
   const [pendingForms, setPendingForms] = useState<Record<string, PendingForm>>({})
   const [classifyingId, setClassifyingId] = useState<string | null>(null)
   const [classifyErrors, setClassifyErrors] = useState<Record<string, string>>({})
-  const [allAccounts, setAllAccounts] = useState<AccountCategory[]>([])
   const [corporateAccountsV2, setCorporateAccountsV2] = useState<ChartAccountV2[]>([])
   const [pendingExpanded, setPendingExpanded] = useState(true)
-  const [legacyChartAccounts, setLegacyChartAccounts] = useState<ChartAccount[]>([])
+  const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
 
   const activeCompany = activeCompanyId !== 'consolidated'
     ? companies.find(c => c.id === activeCompanyId)
@@ -104,9 +99,10 @@ export default function ImportarPage() {
   const hasDriveConfig = !!import.meta.env.VITE_GOOGLE_DRIVE_CLIENT_ID
 
   const loadAccountsForCompany = async (companyId: string) => {
-    const data = await getAccounts(companyId)
-    setAccounts(data)
-    return data
+    const data = await getChartAccounts(companyId)
+    const filtered = data.filter(a => a.is_active && a.level > 1)
+    setChartAccounts(filtered)
+    return filtered
   }
 
   const loadPending = useCallback(async (companyId: string) => {
@@ -135,17 +131,14 @@ export default function ImportarPage() {
   // Load Drive config and pending items on mount / company change
   useEffect(() => {
     if (!activeCompany) return
-    // Carrega plano de contas legado para OfxImportWizard
-    getFinancialEntries(activeCompany.id).catch(() => {})
-    import('../features/finance/services/financeApi').then(({ getChartAccounts }) => {
-      getChartAccounts(activeCompany.id).then(setLegacyChartAccounts).catch(() => {})
-    })
+    getChartAccounts(activeCompany.id)
+      .then(data => setChartAccounts(data.filter(a => a.is_active && a.level > 1)))
+      .catch(() => {})
     getDriveConfig(activeCompany.id).then(cfg => {
       if (cfg?.folder_url) { setFolderUrl(cfg.folder_url); setFolderConfigSaved(true) }
       else if (cfg?.folder_id) { setFolderUrl(`https://drive.google.com/drive/folders/${cfg.folder_id}`); setFolderConfigSaved(true) }
     }).catch(() => {})
     loadPending(activeCompany.id)
-    getAccounts(activeCompany.id).then(setAllAccounts).catch(() => {})
     getCorporateChart(activeCompany.id).then(setCorporateAccountsV2).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id])
@@ -170,18 +163,10 @@ export default function ImportarPage() {
       setProcessing('Classificando automaticamente...')
       const parsed: OcrParsed = result.parsed
 
-      // Tenta conta corporativa primeiro; fallback para plano legado
-      const corporateV2 = await getCorporateChart(companyId).catch(() => [] as ChartAccountV2[])
-      setCorporateAccountsV2(corporateV2)
-
       let accountId = ''
-      if (corporateV2.length > 0) {
-        const suggestedV2 = suggestCorporateAccount(rawText || result.rawText, corporateV2)
-        accountId = suggestedV2?.id ?? ''
-      }
-      if (!accountId && parsed.suggestedAccountCode) {
-        const legacy = loaded.find(a => a.code === parsed.suggestedAccountCode)
-        accountId = legacy?.id ?? ''
+      if (parsed.suggestedAccountCode) {
+        const matched = loaded.find(a => a.code === parsed.suggestedAccountCode)
+        accountId = matched?.id ?? ''
       }
 
       setForm({
@@ -234,12 +219,9 @@ export default function ImportarPage() {
       return
     }
     try {
-      const isV2Account = corporateAccountsV2.some(a => a.id === form.account_id)
       await createTransaction({
         company_id: form.company_id,
-        ...(isV2Account
-          ? { chart_account_v2_id: form.account_id }
-          : { account_id: form.account_id }),
+        chart_account_id: form.account_id,
         type: form.type,
         amount: form.amount, description: form.description, date: form.date,
         channel: form.channel || undefined, is_simulation: isSimulation,
@@ -345,7 +327,7 @@ export default function ImportarPage() {
       await classifyPending({
         pending_id: pendingId,
         company_id: activeCompany.id,
-        account_id: pf.account_id,
+        chart_account_id: pf.account_id,
         type: pf.type,
         save_rule: pf.save_rule,
       })
@@ -531,28 +513,13 @@ export default function ImportarPage() {
                   <label className="text-xs font-medium text-gray-600 block mb-1">
                     Conta do Plano *
                     {form.account_id && <span className="ml-2 text-blue-500 text-xs">sugerida automaticamente</span>}
-                    {corporateAccountsV2.length > 0 && (
-                      <span className="ml-2 text-emerald-600 text-xs">Plano Corporativo</span>
-                    )}
                   </label>
-                  {corporateAccountsV2.length > 0 ? (
-                    <CorporateAccountSelect
-                      accounts={corporateAccountsV2.filter(a =>
-                        form.type === 'receita' ? a.account_class === 'REVENUE' : a.account_class === 'EXPENSE'
-                      )}
-                      value={form.account_id}
-                      onChange={(id) => setForm(p => ({ ...p, account_id: id }))}
-                      className="w-full"
-                      disabled={!form.company_id}
-                    />
-                  ) : (
-                    <select value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!form.company_id}>
-                      <option value="">Selecione a conta...</option>
-                      {accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                    </select>
-                  )}
+                  <select value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={!form.company_id}>
+                    <option value="">Selecione a conta...</option>
+                    {chartAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+                  </select>
                 </div>
 
                 {form.driveUrl && (
@@ -605,7 +572,7 @@ export default function ImportarPage() {
       {tab === 'ofx' && activeCompany && (
         <OfxImportWizard
           companyId={activeCompany.id}
-          chartAccounts={legacyChartAccounts}
+          chartAccounts={chartAccounts}
           chartAccountsV2={corporateAccountsV2}
           onImported={() => {}}
         />
@@ -746,32 +713,15 @@ export default function ImportarPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">
-                          Conta do plano *
-                          {corporateAccountsV2.length > 0 && (
-                            <span className="ml-1 text-emerald-600">· Corporativo</span>
-                          )}
-                        </label>
-                        {corporateAccountsV2.length > 0 ? (
-                          <CorporateAccountSelect
-                            accounts={corporateAccountsV2.filter(a =>
-                              pf.type === 'receita' ? a.account_class === 'REVENUE' : a.account_class === 'EXPENSE'
-                            )}
-                            value={pf.account_id}
-                            onChange={(id) => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: id } }))}
-                            className="w-full text-xs py-1.5"
-                            placeholder="Selecione..."
-                          />
-                        ) : (
-                          <select
-                            value={pf.account_id}
-                            onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: e.target.value } }))}
-                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Selecione...</option>
-                            {allAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                          </select>
-                        )}
+                        <label className="text-xs text-gray-500 block mb-1">Conta do plano *</label>
+                        <select
+                          value={pf.account_id}
+                          onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: e.target.value } }))}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Selecione...</option>
+                          {chartAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+                        </select>
                       </div>
                     </div>
 

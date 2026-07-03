@@ -130,13 +130,13 @@ export default function EbitdaScreen({
   const useIFRS = chartAccountsV2.length > 0
 
   const ifrsResult = useMemo(
-    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, period) : null,
-    [entries, chartAccountsV2, period, useIFRS]
+    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, period, chartAccounts) : null,
+    [entries, chartAccounts, chartAccountsV2, period, useIFRS]
   )
 
   const ifrsResultPrev = useMemo(
-    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, previousPeriod) : null,
-    [entries, chartAccountsV2, previousPeriod, useIFRS]
+    () => useIFRS ? calculateIFRSDRE(entries, chartAccountsV2, previousPeriod, chartAccounts) : null,
+    [entries, chartAccounts, chartAccountsV2, previousPeriod, useIFRS]
   )
 
   const dre = useMemo(

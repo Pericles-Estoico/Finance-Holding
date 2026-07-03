@@ -174,7 +174,7 @@ export default function DreScreen({
   const dre = useMemo(
     () =>
       useIFRS
-        ? ifrsDREToLegacy(calculateIFRSDRE(filteredEntries, chartAccountsV2, period))
+        ? ifrsDREToLegacy(calculateIFRSDRE(filteredEntries, chartAccountsV2, period, chartAccounts))
         : calculateDRE(filteredEntries, chartAccounts, period),
     [filteredEntries, chartAccounts, chartAccountsV2, period, useIFRS]
   )
@@ -182,7 +182,7 @@ export default function DreScreen({
   const prevDre = useMemo(
     () =>
       useIFRS
-        ? ifrsDREToLegacy(calculateIFRSDRE(filteredEntries, chartAccountsV2, previousPeriod))
+        ? ifrsDREToLegacy(calculateIFRSDRE(filteredEntries, chartAccountsV2, previousPeriod, chartAccounts))
         : calculateDRE(filteredEntries, chartAccounts, previousPeriod),
     [filteredEntries, chartAccounts, chartAccountsV2, previousPeriod, useIFRS]
   )

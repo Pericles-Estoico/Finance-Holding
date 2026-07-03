@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js'
-import type { FinancialEntry } from '../types/finance.types'
+import type { FinancialEntry, ChartAccount } from '../types/finance.types'
 import type { ChartAccountV2, AccountClass } from './corporateChartApi'
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -127,7 +127,8 @@ function sumEntries(entries: FinancialEntry[]): Decimal {
 export function calculateIFRSDRE(
   entries: FinancialEntry[],
   accounts: ChartAccountV2[],
-  period: { from: string; to: string }
+  period: { from: string; to: string },
+  unifiedAccounts?: ChartAccount[]
 ): IFRSDREResult {
   const relevant = entries.filter(
     (e) => isActive(e) && inPeriod(e, period.from, period.to)
@@ -145,11 +146,38 @@ export function calculateIFRSDRE(
   const nonOpRevenueEntries: FinancialEntry[] = []
   const taxEntries: FinancialEntry[] = []
 
+  // Mapa rápido para lookup por id (evita O(n²))
+  const unifiedMap = unifiedAccounts
+    ? new Map(unifiedAccounts.map(a => [a.id, a]))
+    : null
+
   for (const entry of relevant) {
-    // Sem vínculo com conta V2 → classificar por type da entrada (receivable/payable)
+    // Sem vínculo com conta V2 → tentar plano unificado (chart_account_id + dre_group)
     if (!entry.chart_account_v2_id) {
-      if (entry.type === 'receivable') revenueEntries.push(entry)
-      else if (entry.type === 'payable') adminEntries.push(entry)
+      const unified = entry.chart_account_id ? unifiedMap?.get(entry.chart_account_id) : undefined
+      if (unified?.dre_group) {
+        switch (unified.dre_group) {
+          case 'gross_revenue':           revenueEntries.push(entry); break
+          case 'revenue_deductions':      deductionEntries.push(entry); break
+          case 'cogs':                    cpvEntries.push(entry); break
+          case 'commercial_expenses':     commercialEntries.push(entry); break
+          case 'administrative_expenses': adminEntries.push(entry); break
+          case 'operational_expenses':    adminEntries.push(entry); break
+          case 'depreciation_amortization': daEntries.push(entry); break
+          case 'financial_result':
+            if (entry.type === 'receivable') nonOpRevenueEntries.push(entry)
+            else financialExpenseEntries.push(entry)
+            break
+          case 'taxes_on_profit': taxEntries.push(entry); break
+          default:
+            if (entry.type === 'receivable') revenueEntries.push(entry)
+            else adminEntries.push(entry)
+        }
+      } else {
+        // Fallback por tipo quando não há conta classificada
+        if (entry.type === 'receivable') revenueEntries.push(entry)
+        else if (entry.type === 'payable') adminEntries.push(entry)
+      }
       continue
     }
 

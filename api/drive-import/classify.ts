@@ -4,11 +4,11 @@ import { supabase } from './_shared'
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   try {
-    const { pending_id, company_id, account_id, type, save_rule } = req.body as {
-      pending_id: string; company_id: string; account_id: string
+    const { pending_id, company_id, account_id, chart_account_id, type, save_rule } = req.body as {
+      pending_id: string; company_id: string; account_id?: string; chart_account_id?: string
       type: 'receita' | 'despesa'; save_rule: boolean
     }
-    if (!pending_id || !company_id || !account_id || !type)
+    if (!pending_id || !company_id || (!account_id && !chart_account_id) || !type)
       return res.status(400).json({ error: 'Campos obrigatorios ausentes' })
 
     const { data: pending } = await supabase
@@ -23,10 +23,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const extracted = pending.extracted_data as { payee?: string; amount_cents?: number; date?: string }
 
-    // Detect whether account_id belongs to chart_accounts_v2 (Corporate) or chart_of_accounts (legacy)
-    const { data: v2Account } = await supabase
-      .from('chart_accounts_v2').select('id').eq('id', account_id).maybeSingle()
-    const isV2 = !!v2Account
+    // Resolve which account field to use:
+    // chart_account_id → unified plan (chart_accounts), preferred
+    // account_id → detect v2 or legacy for backward compat
+    let txAccountFields: Record<string, string> = {}
+    let ruleAccountFields: Record<string, string> = {}
+
+    if (chart_account_id) {
+      txAccountFields = { chart_account_id }
+      ruleAccountFields = { chart_account_id }
+    } else if (account_id) {
+      const { data: v2Account } = await supabase
+        .from('chart_accounts_v2').select('id').eq('id', account_id).maybeSingle()
+      const isV2 = !!v2Account
+      txAccountFields = isV2 ? { chart_account_v2_id: account_id } : { account_id }
+      ruleAccountFields = isV2 ? { chart_account_v2_id: account_id } : { account_id }
+    }
 
     const { data: tx, error: txErr } = await supabase.from('transactions').insert({
       company_id, type,
@@ -36,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       drive_file_url: pending.file_url,
       drive_file_id: pending.drive_file_id,
       is_simulation: false,
-      ...(isV2 ? { chart_account_v2_id: account_id } : { account_id }),
+      ...txAccountFields,
     }).select('id').single()
     if (txErr) throw new Error(txErr.message)
 
@@ -52,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         payee_name: extracted.payee.toLowerCase().trim(),
         transaction_type: type,
         updated_at: new Date().toISOString(),
-        ...(isV2 ? { chart_account_v2_id: account_id } : { account_id }),
+        ...ruleAccountFields,
       }, { onConflict: 'company_id,payee_name' })
     }
 
