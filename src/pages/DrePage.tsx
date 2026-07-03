@@ -110,7 +110,6 @@ export default function DrePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [dre, setDre] = useState<DREResult | null>(null)
   const [loading, setLoading] = useState(false)
-  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['1', '2', '3', '4']))
 
   const companyIds = activeCompanyId === 'consolidated'
@@ -130,7 +129,6 @@ export default function DrePage() {
       ])
 
       setTransactions(txs)
-      setChartAccountsV2(v2Accs)
       const result = calcDRE(txs, accs, v2Accs)
       result.period = `${from} a ${to}`
       setDre(result)
