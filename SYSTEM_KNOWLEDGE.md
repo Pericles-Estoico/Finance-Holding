@@ -167,8 +167,10 @@ const dreForDisplay = useMemo(() => {
 | `010_idempotency_constraints.sql` | Constraints de idempotência |
 | `011_new_chart_of_accounts.sql` | Plano de contas gerencial simplificado |
 | `012_add_fuel_accounts.sql` | Adiciona 3.8 Logística e Transporte (3.8.1 Combustível Empresa, 3.8.2 Combustível Terceiros, 3.8.3 Frete e Entrega, 3.8.4 Manutenção de Veículos). Legado: 6.5 e 6.6 |
+| `013_add_fuel_to_chart_accounts.sql` | Adiciona 6.5 Combustível Empresa e 6.6 Combustível Terceiros em `chart_accounts` (tabela do formulário de lançamentos) |
+| `014_add_travel_expenses.sql` | Adiciona 6.7 Despesas de Viagem em `chart_accounts` |
 
-> **Como aplicar nova migration:** criar arquivo `012_*.sql` e executar manualmente no painel Supabase → SQL Editor, ou via `supabase db push` após `supabase link --project-ref <ref>`.
+> **Como aplicar nova migration:** criar arquivo `0NN_*.sql` e executar via `supabase db push` após `supabase link --project-ref tkvlzjvaazhjbxwsnywc`.
 
 ### Conta Pró-Labore
 - **Código:** `5.2` (migration 004) / `5.3.2.1.6` (migration 007)
@@ -187,11 +189,12 @@ Quando o usuário seleciona uma conta cujo `name` contém "pro-labore" (regex `/
 Os valores são salvos na coluna `counterparty` de `financial_entries` — sem migration necessária.
 
 **Opções atuais do dropdown:**
+- Família
 - Pericles
-- Esposa
-- Filho(a) 1
-- Filho(a) 2
-- Outro familiar
+- Felipe
+- Stella
+- Kalev
+- Doações
 
 > Para personalizar os nomes: editar o array de `<option>` em `FinancialEntryForm.tsx` (linha ~106).
 

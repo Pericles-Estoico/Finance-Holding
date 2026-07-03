@@ -264,11 +264,12 @@ export default function FinancialEntryForm({
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Selecione o beneficiário...</option>
+                <option value="Família">Família</option>
                 <option value="Pericles">Pericles</option>
-                <option value="Esposa">Esposa</option>
-                <option value="Filho(a) 1">Filho(a) 1</option>
-                <option value="Filho(a) 2">Filho(a) 2</option>
-                <option value="Outro familiar">Outro familiar</option>
+                <option value="Felipe">Felipe</option>
+                <option value="Stella">Stella</option>
+                <option value="Kalev">Kalev</option>
+                <option value="Doações">Doações</option>
               </select>
             ) : (
               <input
