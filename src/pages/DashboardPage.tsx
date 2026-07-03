@@ -42,24 +42,26 @@ const CH_NAME: Record<string, string> = {
 
 function getRange(p: Period, f: string, t: string) {
   const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate()
+  const toIso = (dt: Date) => dt.toISOString().slice(0, 10)
   const hojeStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-  if (p === 'hoje') return { from: hojeStr, to: hojeStr }
-  if (p === 'mes_atual') return { from: `${y}-${String(m+1).padStart(2,'0')}-01`, to: `${y}-${String(m+1).padStart(2,'0')}-31` }
+  // "Hoje" = últimos 7 dias corridos para sempre mostrar dados recentes
+  if (p === 'hoje') { const s=new Date(y,m,d-6); return { from: toIso(s), to: hojeStr } }
+  // "Este mês" = últimos 30 dias corridos (não mês calendário)
+  if (p === 'mes_atual') { const s=new Date(y,m,d-29); return { from: toIso(s), to: hojeStr } }
   if (p === 'trimestre') { const fm=m-2, fy=fm<0?y-1:y, am=((fm%12)+12)%12; return { from:`${fy}-${String(am+1).padStart(2,'0')}-01`, to:`${y}-${String(m+1).padStart(2,'0')}-31` } }
   if (p === 'ano_atual') return { from: `${y}-01-01`, to: `${y}-12-31` }
   return { from: f, to: t }
 }
 function getPrevRange(p: Period, f: string, t: string) {
-  const n = new Date(), y = n.getFullYear(), m = n.getMonth()
-  if (p === 'hoje') {
-    const yest = new Date(y, m, n.getDate() - 1)
-    const ontemStr = `${yest.getFullYear()}-${String(yest.getMonth()+1).padStart(2,'0')}-${String(yest.getDate()).padStart(2,'0')}`
-    return { from: ontemStr, to: ontemStr }
-  }
-  if (p === 'mes_atual') { const pm=m===0?12:m,py=m===0?y-1:y; return { from:`${py}-${String(pm).padStart(2,'0')}-01`, to:`${py}-${String(pm).padStart(2,'0')}-31` } }
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate()
+  const toIso = (dt: Date) => dt.toISOString().slice(0, 10)
+  // "Hoje" anterior = 7 dias antes da janela atual (dias -13 a -7)
+  if (p === 'hoje') { const s=new Date(y,m,d-13),e=new Date(y,m,d-7); return { from: toIso(s), to: toIso(e) } }
+  // "Este mês" anterior = 30 dias antes da janela atual (dias -59 a -30)
+  if (p === 'mes_atual') { const s=new Date(y,m,d-59),e=new Date(y,m,d-30); return { from: toIso(s), to: toIso(e) } }
   if (p === 'trimestre') { const q=Math.floor(m/3),pq=q===0?3:q-1,py=q===0?y-1:y; return { from:`${py}-${String(pq*3+1).padStart(2,'0')}-01`, to:`${py}-${String(Math.min(pq*3+3,12)).padStart(2,'0')}-30` } }
   if (p === 'ano_atual') return { from: `${y-1}-01-01`, to: `${y-1}-12-31` }
-  if (f&&t) { const fd=new Date(f),td=new Date(t),d=td.getTime()-fd.getTime(); return { from:new Date(fd.getTime()-d-86400000).toISOString().slice(0,10), to:new Date(fd.getTime()-86400000).toISOString().slice(0,10) } }
+  if (f&&t) { const fd=new Date(f),td=new Date(t),diff=td.getTime()-fd.getTime(); return { from:new Date(fd.getTime()-diff-86400000).toISOString().slice(0,10), to:new Date(fd.getTime()-86400000).toISOString().slice(0,10) } }
   return { from:'', to:'' }
 }
 function get12m() { const n=new Date(); return { from:new Date(n.getFullYear()-1,n.getMonth()+1,1).toISOString().slice(0,10), to:n.toISOString().slice(0,10) } }
