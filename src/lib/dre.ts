@@ -24,6 +24,7 @@ export interface DREResult {
   despesasOperacionais: number
   lucroOperacional: number
   impostos: number
+  despesasFinanceiras: number
   lucroLiquido: number
   margemBruta: number
   margemLiquida: number
@@ -61,12 +62,23 @@ export function calcDRE(
       continue
     }
 
-    // Conta V2 corporativa (chart_accounts_v2)
+    // Conta V2 corporativa (chart_accounts_v2) — mapeada por account_type
     const v2acc = tx.chart_account_v2_id ? v2AccountMap.get(tx.chart_account_v2_id) : undefined
     if (!v2acc) continue
-    if (v2acc.account_class === 'REVENUE') byType.receita.push(tx)
-    else if (v2acc.account_class === 'EXPENSE') byType.despesa_operacional.push(tx)
-    // ASSET, LIABILITY, EQUITY → balanço, não DRE
+    switch (v2acc.account_type) {
+      case 'receita':
+      case 'receita_nao_op':
+        byType.receita.push(tx); break
+      case 'deducao':
+        byType.deducao.push(tx); break
+      case 'cpv':
+        byType.cmv.push(tx); break
+      case 'despesa_operacional':
+        byType.despesa_operacional.push(tx); break
+      case 'despesa_financeira':
+        byType.imposto.push(tx); break
+      // investimento, nao_operacional → não entram no DRE
+    }
   }
 
   // Totais
@@ -148,7 +160,7 @@ export function calcDRE(
       percentOfRevenue: calcPercent(lucroOp, ref), isSubtotal: true,
     },
     {
-      code: '4', label: '(-) Impostos', amountCents: impostos, sign: -1,
+      code: '4', label: '(-) Despesas Financeiras', amountCents: impostos, sign: -1,
       percentOfRevenue: calcPercent(impostos, ref),
       children: drillDown(byType.imposto),
     },
@@ -163,7 +175,7 @@ export function calcDRE(
     receitaBruta, deducoes, receitaLiquida,
     cmv, lucroBruto,
     despesasOperacionais: despOp, lucroOperacional: lucroOp,
-    impostos, lucroLiquido,
+    impostos, despesasFinanceiras: impostos, lucroLiquido,
     margemBruta, margemLiquida,
     receitaPorCanal,
     lines,
