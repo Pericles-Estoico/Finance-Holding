@@ -18,6 +18,7 @@ import {
   updateChartAccount,
   seedDefaultChartAccounts,
 } from '../features/finance/services/financeApi'
+import { getCorporateChart, type ChartAccountV2 } from '../features/finance/services/corporateChartApi'
 import {
   simulationChartAccounts,
   simulationFinancialEntries,
@@ -46,6 +47,7 @@ export default function FinancialEntriesPage() {
 
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
+  const [chartAccountsV2, setChartAccountsV2] = useState<ChartAccountV2[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [costCenters, setCostCenters] = useState<CostCenter[]>([])
 
@@ -79,16 +81,18 @@ export default function FinancialEntriesPage() {
     }
 
     try {
-      const [accountsData, entriesData, banksData, ccData] = await Promise.all([
+      const [accountsData, entriesData, banksData, ccData, v2Data] = await Promise.all([
         getChartAccounts(companyId),
         getFinancialEntries(companyId),
         getBankAccounts(companyId),
         getCostCenters(companyId),
+        getCorporateChart(companyId).catch(() => [] as ChartAccountV2[]),
       ])
       setChartAccounts(accountsData)
       setEntries(entriesData)
       setBankAccounts(banksData)
       setCostCenters(ccData)
+      setChartAccountsV2(v2Data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
     } finally {
@@ -332,7 +336,7 @@ export default function FinancialEntriesPage() {
       </div>
 
       {!loading && entries.length > 0 && (
-        <FinancialDataHealthCheck entries={entries} chartAccounts={chartAccounts} />
+        <FinancialDataHealthCheck entries={entries} chartAccounts={chartAccounts} chartAccountsV2={chartAccountsV2} />
       )}
 
       {error && (
@@ -367,6 +371,7 @@ export default function FinancialEntriesPage() {
           <FinancialEntriesTable
             entries={entries}
             chartAccounts={chartAccounts}
+            chartAccountsV2={chartAccountsV2}
             onEdit={openEdit}
             onMarkPaid={handleMarkPaid}
             onCancel={handleCancelEntry}

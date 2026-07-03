@@ -1,9 +1,11 @@
 import { AlertTriangle, CheckCircle } from 'lucide-react'
 import type { FinancialEntry, ChartAccount } from '../types/finance.types'
+import type { ChartAccountV2 } from '../services/corporateChartApi'
 
 interface Props {
   entries: FinancialEntry[]
   chartAccounts: ChartAccount[]
+  chartAccountsV2?: ChartAccountV2[]
 }
 
 interface Issue {
@@ -12,12 +14,14 @@ interface Issue {
   count: number
 }
 
-export default function FinancialDataHealthCheck({ entries, chartAccounts }: Props) {
+export default function FinancialDataHealthCheck({ entries, chartAccounts, chartAccountsV2 = [] }: Props) {
   const issues: Issue[] = []
 
-  const entriesWithoutAccount = entries.filter(
-    (e) => !e.chart_account_id || !chartAccounts.find((a) => a.id === e.chart_account_id)
-  )
+  const entriesWithoutAccount = entries.filter((e) => {
+    const hasSimple = !!e.chart_account_id && !!chartAccounts.find((a) => a.id === e.chart_account_id)
+    const hasV2 = !!e.chart_account_v2_id && (chartAccountsV2.length === 0 || !!chartAccountsV2.find((a) => a.id === e.chart_account_v2_id))
+    return !hasSimple && !hasV2
+  })
   if (entriesWithoutAccount.length > 0) {
     issues.push({
       severity: 'error',

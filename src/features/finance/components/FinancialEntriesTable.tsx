@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Edit2, CheckCircle, XCircle, Download, Copy, FileText, Table } from 'lucide-react'
 import { fmtBRL } from '../../../lib/currency'
 import type { FinancialEntry, ChartAccount, EntryType, EntryStatus } from '../types/finance.types'
+import type { ChartAccountV2 } from '../services/corporateChartApi'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -11,6 +12,7 @@ const CHANNELS = ['Shopee', 'Mercado Livre', 'Shein', 'Loja Própria', 'Atacado'
 interface Props {
   entries: FinancialEntry[]
   chartAccounts: ChartAccount[]
+  chartAccountsV2?: ChartAccountV2[]
   onEdit: (entry: FinancialEntry) => void
   onMarkPaid: (entry: FinancialEntry) => void
   onCancel: (entry: FinancialEntry) => void
@@ -121,6 +123,7 @@ function exportCSV(rows: FinancialEntry[], accounts: ChartAccount[]) {
 export default function FinancialEntriesTable({
   entries,
   chartAccounts,
+  chartAccountsV2 = [],
   onEdit,
   onMarkPaid,
   onCancel,
@@ -148,8 +151,16 @@ export default function FinancialEntriesTable({
     return chartAccounts.filter((a) => ids.has(a.id))
   }, [entries, chartAccounts])
 
-  function getAccountName(id: string) {
-    return chartAccounts.find((a) => a.id === id)?.name ?? '-'
+  function getAccountName(entry: FinancialEntry) {
+    if (entry.chart_account_id) {
+      const found = chartAccounts.find((a) => a.id === entry.chart_account_id)
+      if (found) return found.name
+    }
+    if (entry.chart_account_v2_id) {
+      const found = chartAccountsV2.find((a) => a.id === entry.chart_account_v2_id)
+      if (found) return `${found.account_code} ${found.account_name}`
+    }
+    return '-'
   }
 
   const filtered = entries.filter((e) => {
@@ -279,7 +290,7 @@ export default function FinancialEntriesTable({
                 <td className="px-4 py-3 text-gray-600">{fmtDate(entry.competence_date)}</td>
                 <td className="px-4 py-3 text-gray-600">{fmtDate(entry.due_date)}</td>
                 <td className="px-4 py-3 font-medium text-gray-800">{entry.description}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs">{getAccountName(entry.chart_account_id)}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs">{getAccountName(entry)}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{entry.counterparty ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{entry.channel ?? '—'}</td>
                 <td className={`px-4 py-3 text-right font-semibold font-mono ${entry.type === 'receivable' ? 'text-emerald-600' : 'text-red-600'}`}>
