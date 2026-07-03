@@ -14,21 +14,8 @@ interface Issue {
   count: number
 }
 
-export default function FinancialDataHealthCheck({ entries, chartAccounts, chartAccountsV2 = [] }: Props) {
+export default function FinancialDataHealthCheck({ entries, chartAccounts, chartAccountsV2: _chartAccountsV2 = [] }: Props) {
   const issues: Issue[] = []
-
-  const entriesWithoutAccount = entries.filter((e) => {
-    const hasSimple = !!e.chart_account_id && !!chartAccounts.find((a) => a.id === e.chart_account_id)
-    const hasV2 = !!e.chart_account_v2_id && (chartAccountsV2.length === 0 || !!chartAccountsV2.find((a) => a.id === e.chart_account_v2_id))
-    return !hasSimple && !hasV2
-  })
-  if (entriesWithoutAccount.length > 0) {
-    issues.push({
-      severity: 'error',
-      message: 'Lançamentos sem conta contábil vinculada',
-      count: entriesWithoutAccount.length,
-    })
-  }
 
   const accountsWithDreButNoGroup = chartAccounts.filter(
     (a) => a.affects_dre && !a.dre_group
