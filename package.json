@@ -28,7 +28,7 @@
     "framer-motion": "^12.38.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.7",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.14.0",
     "multer": "^2.1.1",
     "react": "^19.2.5",
@@ -38,7 +38,8 @@
     "recharts": "^3.8.1",
     "tailwindcss": "^4.2.4",
     "tsx": "^4.21.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

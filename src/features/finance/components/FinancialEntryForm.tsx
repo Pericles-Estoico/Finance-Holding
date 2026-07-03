@@ -84,6 +84,11 @@ export default function FinancialEntryForm({
 
   const activeAccounts = chartAccounts.filter((a) => a.is_active && a.level > 1)
 
+  const selectedAccount = activeAccounts.find((a) => a.id === chartAccountId)
+  const isProLabore = selectedAccount
+    ? /pro.?labore/i.test(selectedAccount.name) || /pro.?labore/i.test(selectedAccount.code)
+    : false
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
@@ -249,14 +254,31 @@ export default function FinancialEntryForm({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Contraparte / Fornecedor</label>
-            <input
-              type="text"
-              value={counterparty}
-              onChange={(e) => setCounterparty(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex: Fornecedor de tecido"
-            />
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              {isProLabore ? 'Beneficiário (familiar)' : 'Contraparte / Fornecedor'}
+            </label>
+            {isProLabore ? (
+              <select
+                value={counterparty}
+                onChange={(e) => setCounterparty(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecione o beneficiário...</option>
+                <option value="Pericles">Pericles</option>
+                <option value="Esposa">Esposa</option>
+                <option value="Filho(a) 1">Filho(a) 1</option>
+                <option value="Filho(a) 2">Filho(a) 2</option>
+                <option value="Outro familiar">Outro familiar</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={counterparty}
+                onChange={(e) => setCounterparty(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: Fornecedor de tecido"
+              />
+            )}
           </div>
 
           <div>

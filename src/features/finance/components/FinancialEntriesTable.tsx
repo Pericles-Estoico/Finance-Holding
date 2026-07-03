@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Edit2, CheckCircle, XCircle, Download, Copy } from 'lucide-react'
+import { Edit2, CheckCircle, XCircle, Download, Copy, FileText, Table } from 'lucide-react'
 import { fmtBRL } from '../../../lib/currency'
 import type { FinancialEntry, ChartAccount, EntryType, EntryStatus } from '../types/finance.types'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const CHANNELS = ['Shopee', 'Mercado Livre', 'Shein', 'Loja Própria', 'Atacado', 'Outros']
 
@@ -39,23 +42,73 @@ function fmtDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
-function exportCSV(rows: FinancialEntry[], accounts: ChartAccount[]) {
+function getExportRows(rows: FinancialEntry[], accounts: ChartAccount[]) {
   const getAccName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
-  const header = ['Tipo', 'Descrição', 'Competência', 'Vencimento', 'Pagamento', 'Conta', 'Canal', 'Valor', 'Status', 'Contraparte', 'Documento']
-  const body = rows.map((e) => [
-    e.type === 'receivable' ? 'A Receber' : 'A Pagar',
-    e.description,
-    e.competence_date,
-    e.due_date,
-    e.paid_or_received_date ?? '',
-    getAccName(e.chart_account_id),
-    e.channel ?? '',
-    e.amount.toFixed(2).replace('.', ','),
-    statusLabels[e.status],
-    e.counterparty ?? '',
-    e.document_number ?? '',
-  ])
-  const csv = [header, ...body].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n')
+  return rows.map((e) => ({
+    Tipo: e.type === 'receivable' ? 'A Receber' : 'A Pagar',
+    Descrição: e.description,
+    Beneficiário: e.counterparty ?? '',
+    Competência: e.competence_date,
+    Vencimento: e.due_date,
+    Pagamento: e.paid_or_received_date ?? '',
+    Conta: getAccName(e.chart_account_id),
+    Canal: e.channel ?? '',
+    Valor: e.amount,
+    Status: statusLabels[e.status],
+    Documento: e.document_number ?? '',
+  }))
+}
+
+function exportExcel(rows: FinancialEntry[], accounts: ChartAccount[], label: string) {
+  const data = getExportRows(rows, accounts)
+  const ws = XLSX.utils.json_to_sheet(data)
+  // Formatar coluna Valor como moeda
+  const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1')
+  for (let r = 1; r <= range.e.r; r++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c: 8 })]
+    if (cell) cell.z = 'R$ #,##0.00'
+  }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos')
+  XLSX.writeFile(wb, `lancamentos_${label}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function exportPDF(rows: FinancialEntry[], accounts: ChartAccount[], label: string) {
+  const doc = new jsPDF({ orientation: 'landscape' })
+  const title = label ? `Lançamentos — ${label}` : 'Lançamentos Financeiros'
+  doc.setFontSize(14)
+  doc.text(title, 14, 15)
+  doc.setFontSize(9)
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}   Total: ${rows.length} registros`, 14, 22)
+
+  const data = getExportRows(rows, accounts)
+  autoTable(doc, {
+    startY: 27,
+    head: [['Tipo', 'Descrição', 'Beneficiário', 'Competência', 'Vencimento', 'Conta', 'Valor', 'Status']],
+    body: data.map((r) => [
+      r.Tipo,
+      r.Descrição,
+      r.Beneficiário,
+      r.Competência,
+      r.Vencimento,
+      r.Conta,
+      `R$ ${r.Valor.toFixed(2).replace('.', ',')}`,
+      r.Status,
+    ]),
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 6: { halign: 'right' } },
+  })
+
+  doc.save(`lancamentos_${label}_${new Date().toISOString().slice(0, 10)}.pdf`)
+}
+
+function exportCSV(rows: FinancialEntry[], accounts: ChartAccount[]) {
+  const data = getExportRows(rows, accounts)
+  const header = Object.keys(data[0] ?? {})
+  const body = data.map((r) => Object.values(r))
+  const csv = [header, ...body].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n')
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -76,6 +129,7 @@ export default function FinancialEntriesTable({
 }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [channelFilter, setChannelFilter] = useState<string>('all')
+  const [accountFilter, setAccountFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -89,6 +143,11 @@ export default function FinancialEntriesTable({
     return [...CHANNELS, ...custom]
   }, [entries])
 
+  const usedAccounts = useMemo(() => {
+    const ids = new Set(entries.map((e) => e.chart_account_id))
+    return chartAccounts.filter((a) => ids.has(a.id))
+  }, [entries, chartAccounts])
+
   function getAccountName(id: string) {
     return chartAccounts.find((a) => a.id === id)?.name ?? '-'
   }
@@ -97,11 +156,16 @@ export default function FinancialEntriesTable({
     if (filterType !== 'all' && e.type !== filterType) return false
     if (statusFilter !== 'all' && e.status !== statusFilter) return false
     if (channelFilter !== 'all' && e.channel !== channelFilter) return false
+    if (accountFilter !== 'all' && e.chart_account_id !== accountFilter) return false
     if (search && !e.description.toLowerCase().includes(search.toLowerCase())) return false
     if (fromDate && e.competence_date < fromDate) return false
     if (toDate && e.competence_date > toDate) return false
     return true
   })
+
+  const exportLabel = accountFilter !== 'all'
+    ? (usedAccounts.find((a) => a.id === accountFilter)?.name ?? 'filtrado')
+    : 'todos'
 
   const totalReceivable = filtered.filter((e) => e.type === 'receivable').reduce((s, e) => s + e.amount, 0)
   const totalPayable = filtered.filter((e) => e.type === 'payable').reduce((s, e) => s + e.amount, 0)
@@ -136,6 +200,16 @@ export default function FinancialEntriesTable({
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        <select
+          value={accountFilter}
+          onChange={(e) => setAccountFilter(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[200px]"
+        >
+          <option value="all">Todas as contas</option>
+          {usedAccounts.map((a) => (
+            <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+          ))}
+        </select>
         <input
           type="date"
           value={fromDate}
@@ -149,14 +223,32 @@ export default function FinancialEntriesTable({
           onChange={(e) => setToDate(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button
-          onClick={() => exportCSV(filtered, chartAccounts)}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          title="Exportar CSV"
-        >
-          <Download className="w-3.5 h-3.5" />
-          CSV
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => exportPDF(filtered, chartAccounts, exportLabel)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            title="Exportar PDF"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            PDF
+          </button>
+          <button
+            onClick={() => exportExcel(filtered, chartAccounts, exportLabel)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
+            title="Exportar Excel"
+          >
+            <Table className="w-3.5 h-3.5" />
+            Excel
+          </button>
+          <button
+            onClick={() => exportCSV(filtered, chartAccounts)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Exportar CSV"
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -167,6 +259,7 @@ export default function FinancialEntriesTable({
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Descrição</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Conta</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Beneficiário</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Canal</th>
               <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Valor</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
@@ -176,7 +269,7 @@ export default function FinancialEntriesTable({
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
                   Nenhum lançamento encontrado.
                 </td>
               </tr>
@@ -187,6 +280,7 @@ export default function FinancialEntriesTable({
                 <td className="px-4 py-3 text-gray-600">{fmtDate(entry.due_date)}</td>
                 <td className="px-4 py-3 font-medium text-gray-800">{entry.description}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{getAccountName(entry.chart_account_id)}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs">{entry.counterparty ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{entry.channel ?? '—'}</td>
                 <td className={`px-4 py-3 text-right font-semibold font-mono ${entry.type === 'receivable' ? 'text-emerald-600' : 'text-red-600'}`}>
                   {entry.type === 'payable' ? '-' : '+'}{fmtBRL(entry.amount)}
