@@ -130,7 +130,7 @@ export function calculateIFRSDRE(
   period: { from: string; to: string }
 ): IFRSDREResult {
   const relevant = entries.filter(
-    (e) => isActive(e) && inPeriod(e, period.from, period.to) && e.chart_account_v2_id
+    (e) => isActive(e) && inPeriod(e, period.from, period.to)
   )
 
   // Buckets por tipo de conta
@@ -146,8 +146,20 @@ export function calculateIFRSDRE(
   const taxEntries: FinancialEntry[] = []
 
   for (const entry of relevant) {
-    const account = findAccount(entry.chart_account_v2_id!, accounts)
-    if (!account) continue
+    // Sem vínculo com conta V2 → classificar por type da entrada (receivable/payable)
+    if (!entry.chart_account_v2_id) {
+      if (entry.type === 'receivable') revenueEntries.push(entry)
+      else if (entry.type === 'payable') adminEntries.push(entry)
+      continue
+    }
+
+    const account = findAccount(entry.chart_account_v2_id, accounts)
+    if (!account) {
+      // Conta V2 não encontrada → fallback por type
+      if (entry.type === 'receivable') revenueEntries.push(entry)
+      else if (entry.type === 'payable') adminEntries.push(entry)
+      continue
+    }
 
     const code = account.account_code
     const atype = account.account_type
