@@ -166,6 +166,7 @@ const dreForDisplay = useMemo(() => {
 | `009_fix_transactions_v2_account.sql` | Adiciona coluna `chart_account_v2_id` em `transactions` (nullable) |
 | `010_idempotency_constraints.sql` | Constraints de idempotência |
 | `011_new_chart_of_accounts.sql` | Plano de contas gerencial simplificado |
+| `012_add_fuel_accounts.sql` | Adiciona 3.8 Logística e Transporte (3.8.1 Combustível Empresa, 3.8.2 Combustível Terceiros, 3.8.3 Frete e Entrega, 3.8.4 Manutenção de Veículos). Legado: 6.5 e 6.6 |
 
 > **Como aplicar nova migration:** criar arquivo `012_*.sql` e executar manualmente no painel Supabase → SQL Editor, ou via `supabase db push` após `supabase link --project-ref <ref>`.
 
