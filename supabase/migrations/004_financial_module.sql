@@ -138,6 +138,8 @@ begin
   (p_company_id,'6.2','Manutenção de Máquinas',2,'operational_expense','operational_expenses','operational_expenses','operating_outflow',true,true,true),
   (p_company_id,'6.3','EPIs',2,'operational_expense','operational_expenses','operational_expenses','operating_outflow',true,true,true),
   (p_company_id,'6.4','Limpeza',2,'operational_expense','operational_expenses','operational_expenses','operating_outflow',true,true,true),
+  (p_company_id,'6.5','Combustível Empresa',2,'operational_expense','operational_expenses','operational_expenses','operating_outflow',true,true,true),
+  (p_company_id,'6.6','Combustível Terceiros',2,'operational_expense','operational_expenses','operational_expenses','operating_outflow',true,true,true),
   (p_company_id,'7','Depreciação e Amortização',1,'depreciation','depreciation_amortization','excluded_from_ebitda',null,true,false,false),
   (p_company_id,'7.1','Depreciação Máquinas',2,'depreciation','depreciation_amortization','excluded_from_ebitda',null,true,false,false),
   (p_company_id,'7.2','Depreciação Equipamentos',2,'depreciation','depreciation_amortization','excluded_from_ebitda',null,true,false,false),
