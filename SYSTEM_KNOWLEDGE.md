@@ -271,7 +271,10 @@ Ao fazer qualquer alteração nos engines de cálculo, valide:
 - [ ] Filtro "Hoje" no Dashboard mostra dados (rolling 7 dias)
 - [ ] Exportação PDF gera arquivo com dados
 - [ ] Exportação Excel gera arquivo com dados
-- [ ] Pró-labore no formulário mostra dropdown de beneficiário
+- [ ] Pró-labore no formulário mostra dropdown de beneficiário (Família, Pericles, Felipe, Stella, Kalev, Doações)
+- [ ] Despesas de Viagem (6.7) aparece na lista de contas do formulário
+- [ ] Combustível Empresa (6.5) e Combustível Terceiros (6.6) aparecem no formulário
+- [ ] Modo Simulação: mesmas contas acima aparecem em `simulationData.ts`
 - [ ] TypeScript sem erros: `npx tsc --noEmit`
 
 ---
@@ -298,14 +301,18 @@ src/
 │   │   ├── financeCalculations.ts      # calculateDRE(), calculateEBITDA()
 │   │   ├── financeApi.ts               # API calls + transactionsAsEntries()
 │   │   └── corporateChartApi.ts        # getCorporateChart() → chart_accounts_v2
+│   ├── data/
+│   │   └── simulationData.ts           # ⚠️ MANTER SINCRONIZADO com chart_accounts reais
 │   └── types/
 │       └── finance.types.ts            # FinancialEntry, ChartAccount, etc.
 └── types/
     └── index.ts                        # Transaction, AccountCategory (legado)
 
 supabase/
-└── migrations/                         # 001 a 011 — aplicar em ordem
+└── migrations/                         # 001 a 014 — aplicar em ordem via supabase db push
 ```
+
+> **CRÍTICO — simulationData.ts:** Toda vez que uma nova conta for adicionada via migration em `chart_accounts`, ela DEVE ser adicionada também em `simulationData.ts` (array `simulationChartAccounts`). Caso contrário, o Modo Simulação não exibirá a conta e o dropdown de Pró-labore não funcionará em simulação.
 
 ---
 
@@ -314,8 +321,8 @@ supabase/
 | Serviço | Trigger | Tempo estimado |
 |---------|---------|----------------|
 | **Vercel** | Push para `main` no GitHub | ~1-2 min |
-| **Supabase** | Manual via painel SQL Editor | imediato |
-| **GitHub** | `git push` (via @devops) | imediato |
+| **Supabase** | `supabase db push` (via CLI, project ref `tkvlzjvaazhjbxwsnywc`) | imediato |
+| **GitHub** | `AIOX_ACTIVE_AGENT=devops git push origin main` (via @devops) | imediato |
 
 > O `git push` requer o agente `@devops` ativo (AIOX Constitution Article II). Execute `AIOX_ACTIVE_AGENT=devops git push` ou ative `@devops` na sessão.
 
@@ -330,3 +337,4 @@ supabase/
 | 2026-07 | Dashboard R$0 com "Este mês" e "Hoje" | Filtros usavam mês/dia calendário corrente, sem dados em julho | `DashboardPage.tsx` |
 | 2026-07 | `dre.*` no JSX em vez de `dreForDisplay.*` | Refatoração incompleta do FinanceDashboard | `FinanceDashboard.tsx` |
 | 2026-07 | `calcDRE` ignorava transações sem conta vinculada | Sem fallback por `tx.type` quando `account_id` e `chart_account_v2_id` ambos null | `dre.ts` |
+| 2026-07 | Despesas de Viagem e Pró-labore não apareciam no formulário | `simulationData.ts` não tinha as contas 6.5, 6.6, 6.7 e 5.2 — Modo Simulação ignora Supabase e usa dados hardcoded | `simulationData.ts` |
