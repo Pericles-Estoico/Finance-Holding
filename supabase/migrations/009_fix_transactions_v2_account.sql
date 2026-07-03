@@ -10,9 +10,15 @@ ALTER TABLE public.transactions
   ALTER COLUMN account_id DROP NOT NULL;
 
 -- Ensure at least one account reference is always present
-ALTER TABLE public.transactions
-  ADD CONSTRAINT chk_transactions_has_account
-  CHECK (account_id IS NOT NULL OR chart_account_v2_id IS NOT NULL);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_transactions_has_account'
+  ) THEN
+    ALTER TABLE public.transactions
+      ADD CONSTRAINT chk_transactions_has_account
+      CHECK (account_id IS NOT NULL OR chart_account_v2_id IS NOT NULL);
+  END IF;
+END $$;
 
 -- 2. payee_account_rules: add v2 column, make account_id nullable
 ALTER TABLE public.payee_account_rules

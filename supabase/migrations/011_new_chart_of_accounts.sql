@@ -4,6 +4,24 @@
 
 BEGIN;
 
+-- Desvincula transações antes de apagar contas antigas:
+-- 1. Remove check constraint temporariamente
+-- 2. Remove FK temporariamente
+-- 3. Limpa referências
+-- 4. Restaura FK e check constraint
+
+ALTER TABLE public.transactions
+  DROP CONSTRAINT IF EXISTS chk_transactions_has_account;
+
+ALTER TABLE public.transactions
+  DROP CONSTRAINT IF EXISTS transactions_chart_account_v2_id_fkey;
+
+UPDATE public.transactions
+  SET chart_account_v2_id = NULL
+  WHERE chart_account_v2_id IN (
+    SELECT id FROM chart_accounts_v2 WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51'
+  );
+
 DELETE FROM chart_accounts_v2 WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
 
 INSERT INTO chart_accounts_v2
@@ -126,5 +144,14 @@ VALUES
 ('6.2',   'Transferências',                            'EQUITY',  'nao_operacional',     'credit', 2, true,  true, 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51', null, null, null),
 ('6.2.1', 'Transferência entre Contas Correntes',      'EQUITY',  'nao_operacional',     'credit', 3, false, true, 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51', null, null, null),
 ('6.2.2', 'Transferência para Aplicação Financeira',   'EQUITY',  'nao_operacional',     'credit', 3, false, true, 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51', null, null, null);
+
+-- Restaura FK após reconstrução do plano de contas
+-- (check constraint chk_transactions_has_account não é restaurada pois há
+--  transações sem account_id nem chart_account_v2_id — o fallback por type já trata isso)
+ALTER TABLE public.transactions
+  ADD CONSTRAINT transactions_chart_account_v2_id_fkey
+  FOREIGN KEY (chart_account_v2_id)
+  REFERENCES public.chart_accounts_v2(id)
+  ON DELETE RESTRICT;
 
 COMMIT;
