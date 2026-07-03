@@ -86,7 +86,7 @@ export default function FinancialEntryForm({
 
   const selectedAccount = activeAccounts.find((a) => a.id === chartAccountId)
   const isProLabore = selectedAccount
-    ? /pro.?labore/i.test(selectedAccount.name) || /pro.?labore/i.test(selectedAccount.code)
+    ? /pr[oó].?labore/i.test(selectedAccount.name) || /pr[oó].?labore/i.test(selectedAccount.code)
     : false
 
   return (
