@@ -14,6 +14,7 @@ const RelatoriosPage = lazy(() => import('./pages/RelatoriosPage'))
 const ConfiguracoesPage = lazy(() => import('./pages/ConfiguracoesPage'))
 const FinanceExecutivePage = lazy(() => import('./pages/FinanceExecutivePage'))
 const FinancialEntriesPage = lazy(() => import('./pages/FinancialEntriesPage'))
+const FluxoCaixaPage = lazy(() => import('./pages/FluxoCaixaPage'))
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/finance" element={<FinanceExecutivePage />} />
             <Route path="/lancamentos" element={<FinancialEntriesPage />} />
+            <Route path="/fluxo-caixa" element={<FluxoCaixaPage />} />
             <Route path="/dre" element={<DrePage />} />
             <Route path="/transacoes" element={<TransacoesPage />} />
             <Route path="/importar" element={<ImportarPage />} />

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart3, FileText, List, Upload, Settings,
   LogOut, FlaskConical, FileDown, Menu, X,
-  LayoutDashboard, Receipt,
+  LayoutDashboard, Receipt, TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCompany } from '../../contexts/CompanyContext'
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/',              label: 'Dashboard',         icon: BarChart3,       end: true },
   { to: '/finance',       label: 'Finance Executivo', icon: LayoutDashboard },
   { to: '/lancamentos',   label: 'Lancamentos',       icon: Receipt },
+  { to: '/fluxo-caixa',  label: 'Fluxo de Caixa',   icon: TrendingUp },
   { to: '/dre',           label: 'DRE',               icon: FileText },
   { to: '/transacoes',    label: 'Transacoes',        icon: List },
   { to: '/importar',      label: 'Importar',          icon: Upload },
