@@ -580,6 +580,34 @@ Adicionar a conta na tabela da seção 12 e atualizar a data de sincronização.
 
 ---
 
+## 13.1 Procedimento de Wipe Completo de Dados
+
+Quando for necessário zerar todos os dados para reimportação, apagar TODAS estas tabelas via API ou SQL (em ordem):
+
+```sql
+-- 1. Tracking de arquivos Drive (CRÍTICO — apagar antes de reimportar, senão retorna "já existia")
+DELETE FROM drive_processed_files  WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
+DELETE FROM pending_classifications WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
+
+-- 2. Dados financeiros
+DELETE FROM financial_entries  WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
+DELETE FROM transactions       WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
+DELETE FROM ofx_pending_entries WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
+
+-- 3. Opcional — regras de auto-classificação por payee
+-- DELETE FROM payee_account_rules WHERE company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51';
+```
+
+> **CRÍTICO:** `drive_processed_files` guarda o `drive_file_id` de cada arquivo já processado. Se não for limpa, ao reescanear a pasta o sistema retorna `already_processed` e descarta o arquivo silenciosamente. Sempre limpar esta tabela antes de reimportar do Drive.
+
+**Tabelas que NÃO devem ser limpas:**
+- `chart_accounts` — plano de contas
+- `bank_accounts` — contas bancárias
+- `cost_centers` — centros de custo
+- `companies` — cadastro de empresas
+
+---
+
 ## 14. Histórico de Bugs Críticos Corrigidos
 
 | Data | Bug | Causa Raiz | Arquivo(s) Corrigido(s) |
@@ -601,3 +629,4 @@ Adicionar a conta na tabela da seção 12 e atualizar a data de sincronização.
 | 2026-07 | Página Fluxo de Caixa existia mas nunca era acessível (sem rota, sem link no menu) | `FluxoCaixaPage.tsx` estava em `src/pages/` mas sem `lazy import` no `App.tsx` nem entrada em `navItems` no `AppLayout.tsx`. Corrigido adicionando rota `/fluxo-caixa` e link "Fluxo de Caixa" com ícone `TrendingUp`. | `App.tsx`, `AppLayout.tsx` |
 | 2026-07 | `is_forecast` faltava nos mappers de OFX e de parcelas — erro TypeScript | `ofxApi.ts` e `FinancialEntriesPage.tsx` tinham mappers de `FinancialEntry` sem o campo obrigatório após migration 020. Corrigido adicionando `is_forecast: false` em cada mapper. | `ofxApi.ts`, `FinancialEntriesPage.tsx` |
 | 2026-07 | `<select>` nativo ainda aparecia em TransacoesPage e ImportarPage mesmo após AccountCombobox criado | AccountCombobox foi criado e aplicado em `FinancialEntryForm`, mas `TransacoesPage` (campo "Conta do Plano") e `ImportarPage` (dois selects: OCR manual e loop OFX) ainda usavam `<select>` nativo. Corrigido em todos os três locais restantes. | `TransacoesPage.tsx`, `ImportarPage.tsx` |
+| 2026-07 | Reimportação do Drive retornava "já existia" após wipe de dados | `drive_processed_files` e `pending_classifications` não foram incluídas no wipe. Essas tabelas guardam o `drive_file_id` de cada arquivo já processado — se não limpas, o sistema retorna `already_processed` e descarta o arquivo sem importar. Solução: incluir sempre essas tabelas no wipe (ver seção 13.1). | `api/drive-import/process-file.ts` |
