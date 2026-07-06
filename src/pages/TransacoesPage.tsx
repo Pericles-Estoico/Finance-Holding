@@ -10,6 +10,7 @@ import Modal from '../components/ui/Modal'
 import BottomSheet from '../components/ui/BottomSheet'
 import type { Transaction, SaleChannel } from '../types'
 import type { ChartAccount } from '../features/finance/types/finance.types'
+import AccountCombobox from '../features/finance/components/AccountCombobox'
 
 const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: 'amazon',        label: 'Amazon' },
@@ -176,10 +177,14 @@ export default function TransacoesPage() {
       </div>
       <div>
         <label className={LABEL_CLS}>Conta do Plano *</label>
-        <select value={form.chart_account_id} onChange={e => setForm(p => ({ ...p, chart_account_id: e.target.value }))} className={INPUT_CLS} disabled={!form.company_id}>
-          <option value="">Selecione a conta...</option>
-          {accounts.map(a => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
-        </select>
+        <AccountCombobox
+          accounts={accounts}
+          value={form.chart_account_id}
+          onChange={(id) => setForm(p => ({ ...p, chart_account_id: id }))}
+          disabled={!form.company_id}
+          required
+          placeholder="Selecione a conta..."
+        />
       </div>
       <div>
         <label className={LABEL_CLS}>Descricao *</label>

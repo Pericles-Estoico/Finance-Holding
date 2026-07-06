@@ -7,9 +7,11 @@ interface Props {
   value: string
   onChange: (id: string) => void
   required?: boolean
+  disabled?: boolean
+  placeholder?: string
 }
 
-export default function AccountCombobox({ accounts, value, onChange, required }: Props) {
+export default function AccountCombobox({ accounts, value, onChange, required, disabled, placeholder = 'Selecione uma conta...' }: Props) {
   const [open, setOpen]            = useState(false)
   const [search, setSearch]        = useState('')
   const [highlighted, setHighlighted] = useState(0)
@@ -68,13 +70,14 @@ export default function AccountCombobox({ accounts, value, onChange, required }:
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => !disabled && setOpen((o) => !o)}
+        disabled={disabled}
         className={`w-full flex items-center justify-between border rounded-lg px-3 py-2 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-          open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-gray-300'
+          disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-gray-300 hover:border-gray-400'
         }`}
       >
         <span className={`truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
-          {selected ? `${selected.code} — ${selected.name}` : 'Selecione uma conta...'}
+          {selected ? `${selected.code} — ${selected.name}` : placeholder}
         </span>
         <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
