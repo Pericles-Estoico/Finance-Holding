@@ -14,7 +14,7 @@ interface Issue {
   count: number
 }
 
-export default function FinancialDataHealthCheck({ entries, chartAccounts, chartAccountsV2: _chartAccountsV2 = [] }: Props) {
+export default function FinancialDataHealthCheck({ entries, chartAccounts, chartAccountsV2: _chartAccountsV2 = [] }: Props) { // eslint-disable-line @typescript-eslint/no-unused-vars
   const issues: Issue[] = []
 
   const accountsWithDreButNoGroup = chartAccounts.filter(

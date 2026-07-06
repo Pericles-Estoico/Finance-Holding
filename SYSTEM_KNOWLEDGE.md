@@ -355,7 +355,7 @@ supabase/
 
 > **CRÍTICO — simulationData.ts:** Toda vez que uma nova conta for adicionada via migration em `chart_accounts`, ela DEVE ser adicionada também em `simulationData.ts` (array `simulationChartAccounts`). Caso contrário, o Modo Simulação não exibirá a conta e o dropdown de Pró-labore não funcionará em simulação.
 
-### Estado atual do simulationChartAccounts (sincronizado em 2026-07-03)
+### Estado atual do simulationChartAccounts (sincronizado em 2026-07-06)
 
 O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 
@@ -365,13 +365,95 @@ O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 | 2 Deduções | 2.1 a 2.6 (Cancelamentos, Devoluções, Descontos, Cupons, Impostos s/ Venda, Taxas Marketplace) |
 | 3 CPV | 3.1 a 3.8 (Tecido, Aviamentos, Embalagem, Costura Int/Ext, Bordado, MO Direta, Perdas) |
 | 4 Comerciais | 4.1 a 4.5 (Comissão, Frete Subsidiado, Tráfego Pago, Influenciadores, Fotos) |
-| 5 Administrativas | 5.1 a 5.6 (Salários, Pró-labore, Contabilidade, Sistemas, Internet, Aluguel) |
+| 5 Administrativas | 5.1 a 5.8 (Salários, Pró-labore [+subs], Contabilidade, Sistemas, Internet, Aluguel, **Acertos Trabalhistas**, **Processos Trabalhistas**) |
+| 5.2 Pró-labore | **5.2.1 Pericles, 5.2.2 Stella, 5.2.3 Kalev, 5.2.4 Felipe, 5.2.5 Doações, 5.2.6 Família** (level 3) |
 | 6 Operacionais | 6.1 a 6.7 (Energia, Manutenção, EPIs, Limpeza, Combustível Emp, Combustível Terc, Despesas Viagem) |
 | 7 Depreciação | 7.1 a 7.3 (Máquinas, Equipamentos, Amortização Sistemas) |
-| 8 Financeiro | 8.1 a 8.5 (Juros Rec, Juros Pag, Tarifas, Multas, Encargos) |
+| 8 Financeiro | 8.1 a 8.6 (Juros Rec, Juros Pag, Tarifas, Multas, Encargos, **Venda de Ativos Imobilizados**) |
 | 9 Impostos | 9.1 IRPJ, 9.2 CSLL |
 | 10 Investimentos | 10.1 a 10.3 (Máquina, Equipamento, Reforma) |
 | 11 Sócios | 11.1 Aporte, 11.2 Distribuição, 11.3 Retirada Extraordinária |
+
+### Classificação das novas contas (migration 018)
+
+| Código | Nome | dre_group | ebitda_group | cash_flow_group |
+|--------|------|-----------|--------------|-----------------|
+| 5.7 | Acertos Trabalhistas | administrative_expenses | excluded_from_ebitda | operating_outflow |
+| 5.8 | Processos Trabalhistas | administrative_expenses | excluded_from_ebitda | operating_outflow |
+| 8.6 | Venda de Ativos Imobilizados | financial_result | excluded_from_ebitda | financing_inflow |
+| 5.2.1–5.2.6 | Pericles/Stella/Kalev/Felipe/Doações/Família | administrative_expenses | excluded_from_ebitda | owner_withdrawal |
+
+> **Nota:** 5.7 e 5.8 são `excluded_from_ebitda` por serem itens não recorrentes (acertos e processos judiciais não fazem parte do EBITDA operacional).
+
+---
+
+## 15. Template: Como Adicionar Novas Contas
+
+Para adicionar novas contas sem precisar pedir manualmente, siga exatamente este fluxo:
+
+### Passo 1 — Definir a classificação contábil
+
+| Campo | Valores possíveis |
+|-------|------------------|
+| `account_type` | `gross_revenue`, `revenue_deduction`, `cogs`, `commercial_expense`, `administrative_expense`, `operational_expense`, `depreciation`, `amortization`, `financial_expense`, `financial_income`, `tax_on_profit`, `investment`, `equity` |
+| `dre_group` | `gross_revenue`, `revenue_deductions`, `cogs`, `commercial_expenses`, `administrative_expenses`, `operational_expenses`, `depreciation_amortization`, `financial_result`, `taxes_on_profit`, `null` (fora do DRE) |
+| `ebitda_group` | `net_revenue`, `cogs`, `commercial_expenses`, `administrative_expenses`, `operational_expenses`, `excluded_from_ebitda` |
+| `cash_flow_group` | `operating_inflow`, `operating_outflow`, `financing_inflow`, `financing_outflow`, `investment_outflow`, `tax_outflow`, `owner_withdrawal`, `capital_injection` |
+
+### Passo 2 — Criar migration `0NN_add_*.sql`
+
+```sql
+-- Migration 0NN: Adiciona [nome da conta]
+INSERT INTO chart_accounts
+  (company_id, code, name, level, account_type,
+   dre_group, ebitda_group, cash_flow_group,
+   affects_dre, affects_ebitda, affects_cash_flow, is_active)
+VALUES
+  ('a4e864f8-f63d-4a51-af5f-0fa2eb91aa51',
+   'X.Y', 'Nome da Conta', 2, 'account_type_aqui',
+   'dre_group_aqui', 'ebitda_group_aqui', 'cash_flow_group_aqui',
+   true, true, true, true)
+ON CONFLICT (company_id, code) DO NOTHING;
+```
+
+Para sub-contas (level 3), use INSERT...SELECT com parent_id via subquery:
+
+```sql
+INSERT INTO chart_accounts
+  (company_id, code, name, level, parent_id, account_type,
+   dre_group, ebitda_group, cash_flow_group,
+   affects_dre, affects_ebitda, affects_cash_flow, is_active)
+SELECT p.company_id, 'X.Y.Z', 'Nome Sub-conta', 3, p.id,
+  'account_type', 'dre_group', 'ebitda_group', 'cash_flow_group',
+  true, true, true, true
+FROM chart_accounts p
+WHERE p.company_id = 'a4e864f8-f63d-4a51-af5f-0fa2eb91aa51' AND p.code = 'X.Y'
+ON CONFLICT (company_id, code) DO NOTHING;
+```
+
+### Passo 3 — Adicionar em `simulationData.ts`
+
+Seguir o padrão existente (linha ~92). Nunca pular este passo.
+
+```typescript
+{ id: 'simulation-acc-X-Y', code: 'X.Y', name: 'Nome', parent_id: 'simulation-acc-X',
+  level: 2, account_type: 'account_type', dre_group: 'dre_group',
+  ebitda_group: 'ebitda_group', cash_flow_group: 'cash_flow_group',
+  affects_dre: true, affects_ebitda: true, affects_cash_flow: true,
+  is_active: true, company_id: SIMULATION_COMPANY_ID,
+  created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+```
+
+### Passo 4 — Aplicar migration no Supabase
+
+```bash
+supabase link --project-ref tkvlzjvaazhjbxwsnywc
+supabase db push
+```
+
+### Passo 5 — Atualizar SYSTEM_KNOWLEDGE.md
+
+Adicionar a conta na tabela da seção 12 e atualizar a data de sincronização.
 
 ---
 
