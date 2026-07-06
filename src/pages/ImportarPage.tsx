@@ -21,6 +21,7 @@ import type { OcrParsed } from '../lib/api/ocr'
 import OfxImportWizard from '../features/finance/components/OfxImportWizard'
 import { getChartAccounts } from '../features/finance/services/financeApi'
 import type { ChartAccount } from '../features/finance/types/finance.types'
+import AccountCombobox from '../features/finance/components/AccountCombobox'
 
 const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: 'amazon', label: 'Amazon' },
@@ -514,12 +515,13 @@ export default function ImportarPage() {
                     Conta do Plano *
                     {form.account_id && <span className="ml-2 text-blue-500 text-xs">sugerida automaticamente</span>}
                   </label>
-                  <select value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!form.company_id}>
-                    <option value="">Selecione a conta...</option>
-                    {chartAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                  </select>
+                  <AccountCombobox
+                    accounts={chartAccounts}
+                    value={form.account_id}
+                    onChange={(id) => setForm(p => ({ ...p, account_id: id }))}
+                    disabled={!form.company_id}
+                    placeholder="Selecione a conta..."
+                  />
                 </div>
 
                 {form.driveUrl && (
@@ -714,14 +716,12 @@ export default function ImportarPage() {
                       </div>
                       <div>
                         <label className="text-xs text-gray-500 block mb-1">Conta do plano *</label>
-                        <select
+                        <AccountCombobox
+                          accounts={chartAccounts}
                           value={pf.account_id}
-                          onChange={e => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: e.target.value } }))}
-                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Selecione...</option>
-                          {chartAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                        </select>
+                          onChange={(id) => setPendingForms(prev => ({ ...prev, [item.id]: { ...pf, account_id: id } }))}
+                          placeholder="Selecione..."
+                        />
                       </div>
                     </div>
 
