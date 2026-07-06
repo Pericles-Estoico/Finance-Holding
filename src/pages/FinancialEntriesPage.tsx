@@ -303,7 +303,9 @@ export default function FinancialEntriesPage() {
         {tab === 'entries' && (
           <button
             onClick={openNew}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            disabled={!companyId && !isSimulation}
+            title={!companyId && !isSimulation ? 'Selecione uma empresa para criar lançamentos' : undefined}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
             Novo Lancamento
