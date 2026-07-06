@@ -162,6 +162,7 @@ export default function FinancialEntriesPage() {
           is_recurring: payload.is_recurring,
           recurrence_frequency: payload.recurrence_frequency,
           recurrence_end_date: payload.recurrence_end_date,
+          is_forecast: payload.is_forecast,
           bank_account_id: payload.bank_account_id,
           notes: payload.notes,
           created_by: payload.created_by,

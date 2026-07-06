@@ -95,6 +95,7 @@ export interface FinancialEntry {
   is_recurring: boolean
   recurrence_frequency: 'weekly' | 'biweekly' | 'monthly' | 'yearly' | null
   recurrence_end_date: string | null
+  is_forecast: boolean
   bank_account_id: string | null
   notes: string | null
   created_by: string | null

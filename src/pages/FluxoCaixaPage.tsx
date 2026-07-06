@@ -6,6 +6,7 @@ import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
 import { getTransactions } from '../lib/api/transactions'
 import { getRecurring } from '../lib/api/recurring'
+import { getForecastEntries } from '../features/finance/services/financeApi'
 import { generateCashFlowProjection } from '../lib/cashflow'
 import { formatBRL } from '../lib/currency'
 import { addDays } from 'date-fns'
@@ -22,6 +23,8 @@ export default function FluxoCaixaPage() {
     receitas: number
     despesas: number
     saldoAcumulado: number
+    receitasPrevistas: number
+    despesasPrevistas: number
   }
 
   const [period, setPeriod] = useState<ProjectionPeriod>('30d')
@@ -45,9 +48,13 @@ export default function FluxoCaixaPage() {
       const startStr = today.toISOString().split('T')[0]
       const endStr = endDate.toISOString().split('T')[0]
 
-      const [txs, recurring] = await Promise.all([
-        getTransactions({ companyIds, isSimulation }), // Busca histórico (para saldo inicial e manual)
-        getRecurring({ companyIds, isSimulation, status: 'active' }) // Busca assinaturas/recorrências
+      const singleCompanyId = activeCompanyId && activeCompanyId !== 'consolidated' ? activeCompanyId : null
+      const [txs, recurring, forecastEntries] = await Promise.all([
+        getTransactions({ companyIds, isSimulation }),
+        getRecurring({ companyIds, isSimulation, status: 'active' }),
+        singleCompanyId
+          ? getForecastEntries(singleCompanyId, startStr, endStr).catch(() => [])
+          : Promise.resolve([]),
       ])
 
       // Cálculo de Saldo Inicial (Todas as receitas reais - todas despesas reais até hoje)
@@ -79,6 +86,16 @@ export default function FluxoCaixaPage() {
         }
       }
 
+      // Mapa de previsões por dia
+      const forecastMap = new Map<string, { receitas: number; despesas: number }>()
+      for (const fe of forecastEntries) {
+        const d = fe.due_date
+        if (!forecastMap.has(d)) forecastMap.set(d, { receitas: 0, despesas: 0 })
+        const f = forecastMap.get(d)!
+        if (fe.type === 'receivable') f.receitas += fe.amount * 100
+        else f.despesas += fe.amount * 100
+      }
+
       // Constrói array para o gráfico com saldo acumulado
       const chartData: CashFlowChartRow[] = []
       let currentBalance = initialBalance
@@ -89,15 +106,18 @@ export default function FluxoCaixaPage() {
       for (const d of sortedDates) {
         const entry = dailyMap.get(d)!
         currentBalance += (entry.receitas - entry.despesas)
-        
+        const forecast = forecastMap.get(d) ?? { receitas: 0, despesas: 0 }
+
         // Converte data para exibir melhor
         const [, mm, dd] = d.split('-')
         chartData.push({
           date: `${dd}/${mm}`,
           fullDate: d,
           receitas: entry.receitas / 100,
-          despesas: -(entry.despesas / 100), // Exibe como negativo no gráfico
-          saldoAcumulado: currentBalance / 100
+          despesas: -(entry.despesas / 100),
+          saldoAcumulado: currentBalance / 100,
+          receitasPrevistas: forecast.receitas / 100,
+          despesasPrevistas: -(forecast.despesas / 100),
         })
       }
 
@@ -161,9 +181,11 @@ export default function FluxoCaixaPage() {
       <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-bold text-slate-800">Gráfico de Projeção Diária</h2>
-          <div className="flex items-center gap-4 text-sm font-medium">
+          <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
             <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-emerald-400"></div>Entradas</span>
             <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-red-400"></div>Saídas</span>
+            <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-violet-300 opacity-80"></div>Prev. Entrada</span>
+            <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-orange-300 opacity-80"></div>Prev. Saída</span>
             <span className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-blue-600"></div>Saldo Acumulado</span>
           </div>
         </div>
@@ -197,15 +219,27 @@ export default function FluxoCaixaPage() {
                   cursor={{ fill: '#F1F5F9' }}
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
+                      const labels: Record<string, string> = {
+                        receitas: 'Entradas',
+                        despesas: 'Saídas',
+                        receitasPrevistas: 'Prev. Entradas',
+                        despesasPrevistas: 'Prev. Saídas',
+                        saldoAcumulado: 'Saldo',
+                      }
+                      const negative = new Set(['despesas', 'despesasPrevistas'])
                       return (
                         <div className="bg-white border border-gray-100 p-3 shadow-lg rounded-xl">
                           <p className="font-bold text-slate-800 mb-2">{label}</p>
-                          {payload.map((p, i) => (
-                            <div key={i} className="flex justify-between gap-4 text-sm mb-1">
-                              <span style={{ color: p.color }} className="font-medium">{p.name === 'saldoAcumulado' ? 'Saldo' : p.name === 'receitas' ? 'Entradas' : 'Saídas'}</span>
-                              <span className="font-bold text-slate-700">{formatBRL(Number(p.value) * (p.name === 'despesas' ? -100 : 100))}</span>
-                            </div>
-                          ))}
+                          {payload.map((p, i) => {
+                            const key = String(p.name)
+                            if (Number(p.value) === 0) return null
+                            return (
+                              <div key={i} className="flex justify-between gap-4 text-sm mb-1">
+                                <span style={{ color: p.color }} className="font-medium">{labels[key] ?? key}</span>
+                                <span className="font-bold text-slate-700">{formatBRL(Number(p.value) * (negative.has(key) ? -100 : 100))}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )
                     }
@@ -214,8 +248,10 @@ export default function FluxoCaixaPage() {
                 />
                 <ReferenceLine y={0} yAxisId="left" stroke="#CBD5E1" />
                 
-                <Bar yAxisId="left" dataKey="receitas" fill="#34D399" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                <Bar yAxisId="left" dataKey="despesas" fill="#F87171" radius={[0, 0, 4, 4]} maxBarSize={40} />
+                <Bar yAxisId="left" dataKey="receitas" fill="#34D399" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar yAxisId="left" dataKey="despesas" fill="#F87171" radius={[0, 0, 4, 4]} maxBarSize={32} />
+                <Bar yAxisId="left" dataKey="receitasPrevistas" fill="#A78BFA" fillOpacity={0.7} radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar yAxisId="left" dataKey="despesasPrevistas" fill="#FDBA74" fillOpacity={0.7} radius={[0, 0, 4, 4]} maxBarSize={32} />
                 <Line yAxisId="right" type="monotone" dataKey="saldoAcumulado" stroke="#2563EB" strokeWidth={3} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>

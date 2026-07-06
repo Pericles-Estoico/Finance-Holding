@@ -48,6 +48,7 @@ export default function FinancialEntryForm({
   const [counterparty, setCounterparty] = useState(initial?.counterparty ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [installments, setInstallments] = useState(1)
+  const [isForecast, setIsForecast] = useState(initial?.is_forecast ?? false)
 
   if (!open) return null
 
@@ -75,6 +76,7 @@ export default function FinancialEntryForm({
       is_recurring: false,
       recurrence_frequency: null,
       recurrence_end_date: null,
+      is_forecast: isForecast,
       bank_account_id: bankAccountId || null,
       notes: notes || null,
       created_by: null,
@@ -280,6 +282,23 @@ export default function FinancialEntryForm({
                 placeholder="Ex: Fornecedor de tecido"
               />
             )}
+          </div>
+
+          {/* Toggle Previsão */}
+          <div className={`flex items-center justify-between rounded-lg px-4 py-3 border ${isForecast ? 'bg-violet-50 border-violet-200' : 'bg-gray-50 border-gray-200'}`}>
+            <div>
+              <p className="text-sm font-medium text-gray-800">Lançamento de Previsão</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {isForecast ? 'Visível no gráfico de projeção como valor previsto' : 'Lançamento realizado ou a vencer normalmente'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsForecast((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isForecast ? 'bg-violet-600' : 'bg-gray-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isForecast ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
           </div>
 
           <div>

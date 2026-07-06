@@ -248,12 +248,30 @@ async function transactionsAsEntries(
     is_recurring: false,
     recurrence_frequency: null,
     recurrence_end_date: null,
+    is_forecast: false,
     bank_account_id: null,
     notes: null,
     created_by: null,
     created_at: tx.created_at,
     updated_at: tx.created_at,
   }))
+}
+
+export async function getForecastEntries(
+  companyId: string,
+  startDate: string,
+  endDate: string
+): Promise<FinancialEntry[]> {
+  const { data, error } = await supabase
+    .from('financial_entries')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('is_forecast', true)
+    .gte('due_date', startDate)
+    .lte('due_date', endDate)
+    .order('due_date', { ascending: true })
+  if (error) throw error
+  return data as FinancialEntry[]
 }
 
 // Busca lançamentos de TODAS as empresas do usuário (RLS garante isolamento por user_id)
@@ -282,6 +300,7 @@ export async function getConsolidatedEntries(): Promise<FinancialEntry[]> {
     counterparty: null, document_number: null, payment_method: null,
     installment_number: null, total_installments: null, parent_entry_id: null,
     is_recurring: false, recurrence_frequency: null, recurrence_end_date: null,
+    is_forecast: false,
     bank_account_id: null, notes: null, created_by: null,
     created_at: tx.created_at, updated_at: tx.created_at,
   }))

@@ -194,6 +194,7 @@ export async function classifyOfxEntry(
     is_recurring:          false,
     recurrence_frequency:  null,
     recurrence_end_date:   null,
+    is_forecast:           false,
     bank_account_id:       null,
     notes:                 p.memo || null,
     created_by:            null,

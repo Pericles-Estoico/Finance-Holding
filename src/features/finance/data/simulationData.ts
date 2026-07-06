@@ -176,6 +176,7 @@ const makeEntry = (
   is_recurring: false,
   recurrence_frequency: null,
   recurrence_end_date: null,
+  is_forecast: false,
   bank_account_id: 'simulation-bank-001',
   notes: null,
   created_by: null,
