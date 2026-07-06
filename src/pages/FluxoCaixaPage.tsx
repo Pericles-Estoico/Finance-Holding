@@ -133,9 +133,13 @@ export default function FluxoCaixaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompanyId, isSimulation, period])
 
-  // KPIs
+  // KPIs — inclui previsões na variação e no saldo final
   const saldoAtual = data.length > 0 ? data[0].saldoAcumulado : 0
-  const saldoFinal = data.length > 0 ? data[data.length - 1].saldoAcumulado : 0
+  const saldoRealFinal = data.length > 0 ? data[data.length - 1].saldoAcumulado : 0
+  const totalPrevistoEntradas = data.reduce((sum, d) => sum + d.receitasPrevistas, 0)
+  const totalPrevistaSaidas  = data.reduce((sum, d) => sum + Math.abs(d.despesasPrevistas), 0)
+  const variacaoPrevista = totalPrevistoEntradas - totalPrevistaSaidas
+  const saldoFinal = saldoRealFinal + variacaoPrevista
   const variacao = saldoFinal - saldoAtual
 
   return (
