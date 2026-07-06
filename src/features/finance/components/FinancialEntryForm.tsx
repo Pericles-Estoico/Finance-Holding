@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { ChartAccount, FinancialEntry, EntryType, EntryStatus, BankAccount, CostCenter } from '../types/finance.types'
+import AccountCombobox from './AccountCombobox'
 
 interface Props {
   open: boolean
@@ -207,19 +208,12 @@ export default function FinancialEntryForm({
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Conta Contábil</label>
-            <select
-              required
+            <AccountCombobox
+              accounts={activeAccounts}
               value={chartAccountId}
-              onChange={(e) => setChartAccountId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Selecione uma conta...</option>
-              {activeAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.code} - {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setChartAccountId}
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
