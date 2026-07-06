@@ -1,6 +1,6 @@
 # SYSTEM_KNOWLEDGE.md
 > Documento vivo de conhecimento do sistema Finance-Holding.
-> Atualizado em: 2026-07-03 (unificação plano de contas + Finance Executivo com chart_account_id)
+> Atualizado em: 2026-07-06 (AccountCombobox, is_forecast, FluxoCaixaPage, contas 5.7–5.11, 8.6, 5.2.1–5.2.6)
 > **Objetivo:** preservar decisões técnicas, bugs corrigidos e padrões estabelecidos para evitar regressões.
 
 ---
@@ -189,6 +189,9 @@ const dreForDisplay = useMemo(() => {
 | `015_add_travel_expenses_v2.sql` | Adiciona **3.8.5 Despesas de Viagem** em `chart_accounts_v2` (tabela IFRS usada pela página Importar via `CorporateAccountSelect.tsx`) |
 | `016_add_chart_account_id_to_transactions.sql` | Adiciona coluna `chart_account_id uuid` (FK para `chart_accounts`) em `transactions` — campo padrão para novos lançamentos |
 | `017_add_chart_account_id_to_payee_rules.sql` | Adiciona `chart_account_id` em `payee_account_rules` e torna `account_id` nullable — suporta regras de payee com plano unificado |
+| `018_add_new_accounts.sql` | Adiciona contas 5.7 Acertos Trabalhistas, 5.8 Processos Trabalhistas, 8.6 Venda de Ativos Imobilizados (level 2) e 5.2.1 Pericles, 5.2.2 Stella, 5.2.3 Kalev, 5.2.4 Felipe, 5.2.5 Doações, 5.2.6 Família (level 3, filhos de 5.2) |
+| `019_add_benefit_accounts.sql` | Adiciona contas 5.9 Vale Refeição, 5.10 Premiação Funcionários, 5.11 Vale de Pagamentos — todas `administrative_expense`, `administrative_expenses`, `operating_outflow` |
+| `020_add_is_forecast.sql` | Adiciona coluna `is_forecast BOOLEAN NOT NULL DEFAULT FALSE` em `financial_entries` — marca lançamentos de previsão/orçamento vs realizados |
 
 > **Como aplicar nova migration:** criar arquivo `0NN_*.sql` e executar via `supabase db push` após `supabase link --project-ref tkvlzjvaazhjbxwsnywc`.
 
@@ -317,6 +320,10 @@ Ao fazer qualquer alteração nos engines de cálculo, valide:
 - [ ] TypeScript sem erros: `npx tsc --noEmit`
 - [ ] Lançamentos importados via Google Drive: coluna CONTA exibe o nome da conta v2 (não "-")
 - [ ] Lançamentos importados via Google Drive: **nenhum** alerta vermelho de "sem conta contábil" para entradas com `chart_account_v2_id` preenchido
+- [ ] Campo "Conta Contábil" em Lançamentos, Transações e Importar exibe combobox com busca (não `<select>` nativo)
+- [ ] Toggle "Lançamento de Previsão" aparece no formulário de lançamentos (violeta quando ativo)
+- [ ] Página Fluxo de Caixa (`/fluxo-caixa`) acessível pelo menu e exibe barras de realizados + previstas
+- [ ] Vale Refeição (5.9), Premiação Funcionários (5.10) e Vale de Pagamentos (5.11) aparecem no formulário de lançamentos
 
 ---
 
@@ -329,12 +336,14 @@ src/
 │   └── currency.ts                     # fmtBRL, formatBRL, sumCents
 ├── pages/
 │   ├── DashboardPage.tsx               # Dashboard "/" com getRange() rolling windows
-│   └── FinancialEntriesPage.tsx        # Página de lançamentos c/ export
+│   ├── FinancialEntriesPage.tsx        # Página de lançamentos c/ export
+│   └── FluxoCaixaPage.tsx              # Fluxo de caixa semanal c/ previsões (/fluxo-caixa)
 ├── features/finance/
 │   ├── components/
 │   │   ├── FinanceDashboard.tsx        # Finance Executivo hub + dreForDisplay
-│   │   ├── FinancialEntryForm.tsx      # Formulário c/ beneficiário pró-labore
+│   │   ├── FinancialEntryForm.tsx      # Formulário c/ beneficiário pró-labore + toggle is_forecast
 │   │   ├── FinancialEntriesTable.tsx   # Tabela c/ filtro conta + PDF/Excel/CSV
+│   │   ├── AccountCombobox.tsx         # Combobox com busca em tempo real para conta contábil
 │   │   ├── EbitdaScreen.tsx            # EBITDA com IFRS engine
 │   │   └── DREScreen.tsx               # DRE detalhado
 │   ├── services/
@@ -350,7 +359,7 @@ src/
     └── index.ts                        # Transaction, AccountCategory (legado)
 
 supabase/
-└── migrations/                         # 001 a 015 — aplicar em ordem via supabase db push
+└── migrations/                         # 001 a 020 — aplicar em ordem via supabase db push
 ```
 
 > **CRÍTICO — simulationData.ts:** Toda vez que uma nova conta for adicionada via migration em `chart_accounts`, ela DEVE ser adicionada também em `simulationData.ts` (array `simulationChartAccounts`). Caso contrário, o Modo Simulação não exibirá a conta e o dropdown de Pró-labore não funcionará em simulação.
@@ -365,7 +374,7 @@ O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 | 2 Deduções | 2.1 a 2.6 (Cancelamentos, Devoluções, Descontos, Cupons, Impostos s/ Venda, Taxas Marketplace) |
 | 3 CPV | 3.1 a 3.8 (Tecido, Aviamentos, Embalagem, Costura Int/Ext, Bordado, MO Direta, Perdas) |
 | 4 Comerciais | 4.1 a 4.5 (Comissão, Frete Subsidiado, Tráfego Pago, Influenciadores, Fotos) |
-| 5 Administrativas | 5.1 a 5.8 (Salários, Pró-labore [+subs], Contabilidade, Sistemas, Internet, Aluguel, **Acertos Trabalhistas**, **Processos Trabalhistas**) |
+| 5 Administrativas | 5.1 a 5.11 (Salários, Pró-labore [+subs], Contabilidade, Sistemas, Internet, Aluguel, Acertos Trabalhistas, Processos Trabalhistas, **Vale Refeição**, **Premiação Funcionários**, **Vale de Pagamentos**) |
 | 5.2 Pró-labore | **5.2.1 Pericles, 5.2.2 Stella, 5.2.3 Kalev, 5.2.4 Felipe, 5.2.5 Doações, 5.2.6 Família** (level 3) |
 | 6 Operacionais | 6.1 a 6.7 (Energia, Manutenção, EPIs, Limpeza, Combustível Emp, Combustível Terc, Despesas Viagem) |
 | 7 Depreciação | 7.1 a 7.3 (Máquinas, Equipamentos, Amortização Sistemas) |
@@ -374,7 +383,7 @@ O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 | 10 Investimentos | 10.1 a 10.3 (Máquina, Equipamento, Reforma) |
 | 11 Sócios | 11.1 Aporte, 11.2 Distribuição, 11.3 Retirada Extraordinária |
 
-### Classificação das novas contas (migration 018)
+### Classificação das contas adicionadas (migrations 018–019)
 
 | Código | Nome | dre_group | ebitda_group | cash_flow_group |
 |--------|------|-----------|--------------|-----------------|
@@ -382,12 +391,114 @@ O array cobre **TODAS** as contas do `chart_accounts` real (grupos 1 a 11):
 | 5.8 | Processos Trabalhistas | administrative_expenses | excluded_from_ebitda | operating_outflow |
 | 8.6 | Venda de Ativos Imobilizados | financial_result | excluded_from_ebitda | financing_inflow |
 | 5.2.1–5.2.6 | Pericles/Stella/Kalev/Felipe/Doações/Família | administrative_expenses | excluded_from_ebitda | owner_withdrawal |
+| 5.9 | Vale Refeição | administrative_expenses | administrative_expenses | operating_outflow |
+| 5.10 | Premiação Funcionários | administrative_expenses | administrative_expenses | operating_outflow |
+| 5.11 | Vale de Pagamentos | administrative_expenses | administrative_expenses | operating_outflow |
 
-> **Nota:** 5.7 e 5.8 são `excluded_from_ebitda` por serem itens não recorrentes (acertos e processos judiciais não fazem parte do EBITDA operacional).
+> **Nota:** 5.7 e 5.8 são `excluded_from_ebitda` por serem itens não recorrentes (acertos e processos judiciais não fazem parte do EBITDA operacional). 5.9–5.11 são benefícios recorrentes, portanto incluídos no EBITDA (`administrative_expenses`).
 
 ---
 
-## 15. Template: Como Adicionar Novas Contas
+## 15. Componente `AccountCombobox` — Busca em Tempo Real
+
+**Arquivo:** `src/features/finance/components/AccountCombobox.tsx`
+
+Substituiu todos os `<select>` nativos de "Conta Contábil" / "Conta do Plano" na aplicação.
+
+### Onde é usado
+| Arquivo | Campo substituído |
+|---------|-----------------|
+| `FinancialEntryForm.tsx` | Conta Contábil (formulário de lançamentos) |
+| `TransacoesPage.tsx` | Conta do Plano (formulário de transações) |
+| `ImportarPage.tsx` | Conta (OCR manual + loop OFX de classificações pendentes) |
+
+### Props
+```typescript
+interface Props {
+  accounts: ChartAccount[]
+  value: string                    // ID da conta selecionada
+  onChange: (id: string) => void
+  required?: boolean               // ativa validação nativa (input oculto)
+  disabled?: boolean               // estado desabilitado (opacity + cursor)
+  placeholder?: string             // default: 'Selecione uma conta...'
+}
+```
+
+### Funcionalidades
+- Filtra em tempo real por código OU nome (case-insensitive)
+- Navegação por teclado: ↑↓ navegar, Enter selecionar, Escape fechar
+- Fecha ao clicar fora do componente
+- Auto-foca input de busca ao abrir
+- Scroll automático para item destacado
+- Exibe código em monospace + nome; ✓ no item selecionado
+- Contador de resultados filtrados no rodapé da busca
+
+---
+
+## 16. Campo `is_forecast` — Lançamentos de Previsão
+
+**Migration:** `020_add_is_forecast.sql`
+**Campo:** `financial_entries.is_forecast BOOLEAN NOT NULL DEFAULT FALSE`
+
+### Regra
+- `false` (padrão) → lançamento realizado ou a pagar/receber normalmente
+- `true` → lançamento de previsão/orçamento (aparece no gráfico de projeção de fluxo de caixa com estilo diferenciado)
+
+### Onde aparece
+| Arquivo | Uso |
+|---------|-----|
+| `FinancialEntryForm.tsx` | Toggle "Lançamento de Previsão" (violet quando ativo) |
+| `FluxoCaixaPage.tsx` | Barras de previsão (violeta/laranja) no gráfico |
+| `financeApi.ts` | `getForecastEntries(companyId, startDate, endDate)` |
+| `simulationData.ts` | `is_forecast: false` em todos os entries de simulação |
+| `ofxApi.ts` | `is_forecast: false` no mapper de importação OFX |
+| `FinancialEntriesPage.tsx` | `is_forecast: payload.is_forecast` no mapper de parcelas |
+
+### API
+```typescript
+export async function getForecastEntries(
+  companyId: string,
+  startDate: string,   // YYYY-MM-DD
+  endDate: string      // YYYY-MM-DD
+): Promise<FinancialEntry[]>
+// Retorna entradas com is_forecast=true, ordenadas por due_date ASC
+```
+
+---
+
+## 17. Página Fluxo de Caixa — `/fluxo-caixa`
+
+**Arquivo:** `src/pages/FluxoCaixaPage.tsx`
+**Rota:** `/fluxo-caixa`
+**Nav:** entre "Lançamentos" e "DRE" no `AppLayout.tsx`
+
+### Funcionalidade
+Gráfico de barras agrupadas mostrando o fluxo de caixa semanal (±4 semanas em torno de hoje):
+- **Barras azul/vermelho:** entradas e saídas realizadas (`is_forecast = false`)
+- **Barras violeta/laranja:** previsões de receita/despesa (`is_forecast = true`, `fillOpacity=0.7`)
+
+### Estrutura de dados
+```typescript
+interface CashFlowChartRow {
+  label: string           // "Sem 26", "Sem 27", ...
+  receitas: number        // realizadas
+  despesas: number        // realizadas
+  receitasPrevistas: number
+  despesasPrevistas: number
+}
+```
+
+### Cores dos gráficos
+| Série | Cor |
+|-------|-----|
+| Receitas realizadas | `#3B82F6` (blue-500) |
+| Despesas realizadas | `#EF4444` (red-500) |
+| Receitas previstas | `#A78BFA` (violet-400) |
+| Despesas previstas | `#FDBA74` (orange-300) |
+
+---
+
+## 18. Template: Como Adicionar Novas Contas
 
 Para adicionar novas contas sem precisar pedir manualmente, siga exatamente este fluxo:
 
@@ -487,3 +598,6 @@ Adicionar a conta na tabela da seção 12 e atualizar a data de sincronização.
 | 2026-07 | Tela Transações usava plano legado (`chart_of_accounts`), Lançamentos usava plano novo (`chart_accounts`) — dois planos diferentes na mesma sessão | `TransacoesPage` chamava `getAccounts()` → `chart_of_accounts`. Unificado para `getChartAccounts()` → `chart_accounts` (1–11). Migration 016 adicionou `chart_account_id` em `transactions`. Bridge `transactionsAsEntries` atualizada para preferir `chart_account_id`. Exports (PDF/CSV) atualizados para `ChartAccount`. | `TransacoesPage.tsx`, `financeApi.ts`, `csv.ts`, `pdf.ts`, migration 016 |
 | 2026-07 | Página Importar atribuía conta em formato IFRS (`chart_account_v2_id`) no fluxo manual e Drive, exigindo segunda atribuição em Lançamentos | `ImportarPage` usava `CorporateAccountSelect` (v2 IFRS). Substituído por `<select>` com `chart_accounts` (1–11). `handleConfirm` salva `chart_account_id`. `handleClassify` envia `chart_account_id`. Backend `classify.ts` atualizado para aceitar `chart_account_id`. Migration 017 adicionou `chart_account_id` em `payee_account_rules`. | `ImportarPage.tsx`, `classify.ts`, `driveImport.ts`, migration 017 |
 | 2026-07 | Finance Executivo DRE não usava `chart_account_id` para classificação — entradas com plano unificado (1–11) caíam todas em "Despesas Administrativas" | `ifrsEngine.calculateIFRSDRE` só entendia `chart_account_v2_id`. Adicionado 4º parâmetro `unifiedAccounts?: ChartAccount[]` com mapeamento de `dre_group` para buckets DRE. `DreScreen`, `FinanceDashboard` e `EbitdaScreen` agora passam `chartAccounts` ao engine. | `ifrsEngine.ts`, `DreScreen.tsx`, `FinanceDashboard.tsx`, `EbitdaScreen.tsx` |
+| 2026-07 | Página Fluxo de Caixa existia mas nunca era acessível (sem rota, sem link no menu) | `FluxoCaixaPage.tsx` estava em `src/pages/` mas sem `lazy import` no `App.tsx` nem entrada em `navItems` no `AppLayout.tsx`. Corrigido adicionando rota `/fluxo-caixa` e link "Fluxo de Caixa" com ícone `TrendingUp`. | `App.tsx`, `AppLayout.tsx` |
+| 2026-07 | `is_forecast` faltava nos mappers de OFX e de parcelas — erro TypeScript | `ofxApi.ts` e `FinancialEntriesPage.tsx` tinham mappers de `FinancialEntry` sem o campo obrigatório após migration 020. Corrigido adicionando `is_forecast: false` em cada mapper. | `ofxApi.ts`, `FinancialEntriesPage.tsx` |
+| 2026-07 | `<select>` nativo ainda aparecia em TransacoesPage e ImportarPage mesmo após AccountCombobox criado | AccountCombobox foi criado e aplicado em `FinancialEntryForm`, mas `TransacoesPage` (campo "Conta do Plano") e `ImportarPage` (dois selects: OCR manual e loop OFX) ainda usavam `<select>` nativo. Corrigido em todos os três locais restantes. | `TransacoesPage.tsx`, `ImportarPage.tsx` |
