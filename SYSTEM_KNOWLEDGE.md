@@ -1,6 +1,6 @@
 # SYSTEM_KNOWLEDGE.md
 > Documento vivo de conhecimento do sistema Finance-Holding.
-> Atualizado em: 2026-07-06 (AccountCombobox, is_forecast, FluxoCaixaPage, contas 5.7–5.11, 8.6, 5.2.1–5.2.6)
+> Atualizado em: 2026-07-07 (FluxoCaixaPage KPIs + saldo acumulado, FinancialEntriesPage bloqueio consolidado)
 > **Objetivo:** preservar decisões técnicas, bugs corrigidos e padrões estabelecidos para evitar regressões.
 
 ---
@@ -324,6 +324,10 @@ Ao fazer qualquer alteração nos engines de cálculo, valide:
 - [ ] Toggle "Lançamento de Previsão" aparece no formulário de lançamentos (violeta quando ativo)
 - [ ] Página Fluxo de Caixa (`/fluxo-caixa`) acessível pelo menu e exibe barras de realizados + previstas
 - [ ] Vale Refeição (5.9), Premiação Funcionários (5.10) e Vale de Pagamentos (5.11) aparecem no formulário de lançamentos
+- [ ] Fluxo de Caixa: KPIs mostram "Saldo Atual", "Variação Projetada" e "Saldo Final Projetado" com valores corretos
+- [ ] Fluxo de Caixa: linha de saldo acumulado (azul) aparece no gráfico junto com as barras
+- [ ] Fluxo de Caixa: seletor de período (30d / 3m / 6m) funciona e recarrega os dados
+- [ ] Botão "Novo Lançamento" desabilitado quando Visão Consolidada está selecionada
 
 ---
 
@@ -473,28 +477,58 @@ export async function getForecastEntries(
 **Nav:** entre "Lançamentos" e "DRE" no `AppLayout.tsx`
 
 ### Funcionalidade
-Gráfico de barras agrupadas mostrando o fluxo de caixa semanal (±4 semanas em torno de hoje):
-- **Barras azul/vermelho:** entradas e saídas realizadas (`is_forecast = false`)
-- **Barras violeta/laranja:** previsões de receita/despesa (`is_forecast = true`, `fillOpacity=0.7`)
+`ComposedChart` (Recharts) com barras diárias + linha de saldo acumulado. Seletor de período: 30d / 3m / 6m.
+
+- **Barras verde/vermelho:** entradas e saídas projetadas (geradas por `generateCashFlowProjection`)
+- **Barras violeta/laranja:** previsões de `financial_entries` com `is_forecast=true` (via `getForecastEntries`)
+- **Linha azul:** saldo acumulado correndo dia a dia (`saldoAcumulado`)
+
+### KPIs (topo da página)
+| KPI | Cálculo |
+|-----|---------|
+| **Saldo Atual (Hoje)** | `data[0].saldoAcumulado` — saldo do primeiro dia da janela |
+| **Variação Projetada** | `totalPrevistoEntradas − totalPrevistaSaidas` (soma de entradas/saídas previstas no período) |
+| **Saldo Final Projetado** | `saldoRealFinal + variacaoPrevista` — combina realizados + previstos |
+
+### Saldo inicial
+Calculado somando **todas as transações anteriores a hoje**:
+```typescript
+for (const tx of txs) {
+  if (new Date(tx.date) < today) {
+    initialBalance += tx.type === 'receita' ? tx.amount_cents : -tx.amount_cents
+  }
+}
+```
 
 ### Estrutura de dados
 ```typescript
 interface CashFlowChartRow {
-  label: string           // "Sem 26", "Sem 27", ...
-  receitas: number        // realizadas
-  despesas: number        // realizadas
-  receitasPrevistas: number
-  despesasPrevistas: number
+  date: string            // "DD/MM" (exibição)
+  fullDate: string        // "YYYY-MM-DD" (chave interna)
+  receitas: number        // entradas projetadas (em reais)
+  despesas: number        // saídas projetadas (negativo, em reais)
+  saldoAcumulado: number  // saldo corrente acumulado (em reais)
+  receitasPrevistas: number   // is_forecast=true, entradas (em reais)
+  despesasPrevistas: number   // is_forecast=true, saídas (negativo, em reais)
 }
 ```
 
+### Eixos do gráfico
+- **Eixo Y esquerdo (`yAxisId="left"`):** barras de entradas/saídas realizadas + previstas
+- **Eixo Y direito (`yAxisId="right"`):** linha de saldo acumulado
+- **Formato:** `R$${(v/1000).toFixed(0)}k`
+
 ### Cores dos gráficos
-| Série | Cor |
-|-------|-----|
-| Receitas realizadas | `#3B82F6` (blue-500) |
-| Despesas realizadas | `#EF4444` (red-500) |
-| Receitas previstas | `#A78BFA` (violet-400) |
-| Despesas previstas | `#FDBA74` (orange-300) |
+| Série | Cor | Tipo |
+|-------|-----|------|
+| Receitas realizadas | `#34D399` (emerald-400) | Bar |
+| Saídas realizadas | `#F87171` (red-400) | Bar |
+| Receitas previstas | `#A78BFA` (violet-300, opacity 0.7) | Bar |
+| Saídas previstas | `#FDBA74` (orange-300, opacity 0.7) | Bar |
+| Saldo Acumulado | `#2563EB` (blue-600) | Line |
+
+### Visão Consolidada
+Quando `activeCompanyId === 'consolidated'`, previsões (`getForecastEntries`) **não são carregadas** (requer `singleCompanyId`). Apenas os dados projetados de múltiplas empresas são exibidos.
 
 ---
 
@@ -565,6 +599,27 @@ supabase db push
 ### Passo 5 — Atualizar SYSTEM_KNOWLEDGE.md
 
 Adicionar a conta na tabela da seção 12 e atualizar a data de sincronização.
+
+---
+
+## 19. Botão "Novo Lançamento" — Bloqueio na Visão Consolidada
+
+**Arquivo:** `src/pages/FinancialEntriesPage.tsx`
+
+O botão **"Novo Lançamento"** fica `disabled` quando:
+- Nenhuma empresa está selecionada (`!companyId && !isSimulation`)
+- A **Visão Consolidada** está ativa (`activeCompanyId === 'consolidated'`)
+
+A lógica é: `companyId` é derivado como `''` quando `activeCompanyId === 'consolidated'`, o que desativa o botão e exibe tooltip explicativo.
+
+```tsx
+<button
+  disabled={!companyId && !isSimulation}
+  title={!companyId && !isSimulation ? 'Selecione uma empresa para criar lançamentos' : undefined}
+>
+```
+
+> **REGRA:** Lançamentos só podem ser criados no contexto de uma empresa específica. A visão consolidada é somente leitura para criação de registros.
 
 ---
 
