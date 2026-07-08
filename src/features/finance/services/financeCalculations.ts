@@ -62,8 +62,11 @@ export function calculateDRE(
   let resultadoFinanceiro = 0
   for (const fe of financialResultEntries) {
     const acc = getAccountForEntry(fe, chartAccounts)
-    if (!acc) continue
-    if (acc.account_type === 'financial_income') {
+    // Determina se é receita: pela conta (se existir) ou pelo type da transação como fallback
+    const isIncome = acc
+      ? acc.account_type === 'financial_income'
+      : fe.type === 'receivable'
+    if (isIncome) {
       resultadoFinanceiro += fe.amount
     } else {
       resultadoFinanceiro -= fe.amount
@@ -284,7 +287,10 @@ export function ifrsDREToLegacy(
     lucroBruto: ifrs.lucroBruto.toNumber(),
     despesasComerciais: ifrs.despesasComerciais.toNumber(),
     despesasAdministrativas: ifrs.despesasAdministrativas.toNumber(),
-    despesasOperacionais: ifrs.despesasFinanceiras.toNumber(),
+    despesasOperacionais: ifrs.totalDespesasOperacionais
+      .minus(ifrs.despesasComerciais)
+      .minus(ifrs.despesasAdministrativas)
+      .toNumber(),
     totalDespesasOperacionais: ifrs.totalDespesasOperacionais.toNumber(),
     ebitda: ifrs.ebitda.toNumber(),
     depreciacao: ifrs.depreciacao.plus(ifrs.amortizacao).toNumber(),

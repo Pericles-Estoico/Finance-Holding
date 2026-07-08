@@ -135,8 +135,9 @@ export default function TransacoesPage() {
   }
 
   const filtered      = filterType === 'todos' ? transactions : transactions.filter(t => t.type === filterType)
-  const totalReceitas = transactions.filter(t => t.type === 'receita').reduce((s, t) => s + t.amount_cents, 0)
-  const totalDespesas = transactions.filter(t => t.type === 'despesa').reduce((s, t) => s + t.amount_cents, 0)
+  // KPIs refletem apenas as transações visíveis na lista (respeitam o filtro de tipo ativo)
+  const totalReceitas = filtered.filter(t => t.type === 'receita').reduce((s, t) => s + t.amount_cents, 0)
+  const totalDespesas = filtered.filter(t => t.type === 'despesa').reduce((s, t) => s + t.amount_cents, 0)
   const saldo         = totalReceitas - totalDespesas
   const getCompanyName = (id: string) => companies.find(c => c.id === id)?.name ?? '—'
   const allAccountMap = useMemo(() => new Map(allAccounts.map(a => [a.id, a])), [allAccounts])

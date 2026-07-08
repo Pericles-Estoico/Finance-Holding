@@ -6,7 +6,7 @@ import { useCompany } from '../contexts/CompanyContext'
 import { useSimulation } from '../contexts/SimulationContext'
 import { getTransactions } from '../lib/api/transactions'
 import { getRecurring } from '../lib/api/recurring'
-import { getForecastEntries } from '../features/finance/services/financeApi'
+import { getForecastEntries, getBankAccounts } from '../features/finance/services/financeApi'
 import { generateCashFlowProjection } from '../lib/cashflow'
 import { formatBRL } from '../lib/currency'
 import { addDays } from 'date-fns'
@@ -49,22 +49,18 @@ export default function FluxoCaixaPage() {
       const endStr = endDate.toISOString().split('T')[0]
 
       const singleCompanyId = activeCompanyId && activeCompanyId !== 'consolidated' ? activeCompanyId : null
-      const [txs, recurring, forecastEntries] = await Promise.all([
+      const [txs, recurring, forecastEntries, bankAccountsPerCompany] = await Promise.all([
         getTransactions({ companyIds, isSimulation }),
         getRecurring({ companyIds, isSimulation, status: 'active' }),
         singleCompanyId
           ? getForecastEntries(singleCompanyId, startStr, endStr).catch(() => [])
           : Promise.resolve([]),
+        Promise.all(companyIds.map(id => getBankAccounts(id))),
       ])
 
-      // Cálculo de Saldo Inicial (Todas as receitas reais - todas despesas reais até hoje)
-      // Simplificado: Assumiremos que todas as transações passadas formam o saldo atual da empresa.
-      let initialBalance = 0
-      for (const tx of txs) {
-        if (new Date(tx.date) < today) {
-          initialBalance += tx.type === 'receita' ? tx.amount_cents : -tx.amount_cents
-        }
-      }
+      // Saldo inicial: soma dos saldos reais das contas bancárias (current_balance em reais → converte para centavos)
+      const allBankAccounts = bankAccountsPerCompany.flat()
+      const initialBalance = allBankAccounts.reduce((sum, ba) => sum + Math.round((ba.current_balance ?? 0) * 100), 0)
 
       // Gera projeção
       const projectedTxs = generateCashFlowProjection(txs, recurring, startStr, endStr)

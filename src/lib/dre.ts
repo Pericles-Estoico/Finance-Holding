@@ -25,6 +25,7 @@ export interface DREResult {
   lucroOperacional: number
   impostos: number
   despesasFinanceiras: number
+  resultadoFinanceiro: number
   lucroLiquido: number
   margemBruta: number
   margemLiquida: number
@@ -47,6 +48,7 @@ export function calcDRE(
     cmv: [],
     despesa_operacional: [],
     imposto: [],
+    resultado_financeiro: [],
   }
 
   for (const tx of transactions) {
@@ -65,15 +67,15 @@ export function calcDRE(
     // Conta V2 corporativa (chart_accounts_v2) — mapeada por account_type
     const v2acc = tx.chart_account_v2_id ? v2AccountMap.get(tx.chart_account_v2_id) : undefined
     if (!v2acc) {
-      // Fallback: classificar pelo type da transação quando não há conta vinculada
-      if (tx.type === 'receita') byType.receita.push(tx)
-      else if (tx.type === 'despesa') byType.despesa_operacional.push(tx)
+      // Sem conta vinculada: não classifica no DRE (evita contaminar linhas com CAPEX e outros não-operacionais)
       continue
     }
     switch (v2acc.account_type) {
       case 'receita':
-      case 'receita_nao_op':
         byType.receita.push(tx); break
+      case 'receita_nao_op':
+        // Receitas não-operacionais (financeiras) vão para resultado financeiro, não para receita bruta
+        byType.resultado_financeiro.push(tx); break
       case 'deducao':
         byType.deducao.push(tx); break
       case 'cpv':
@@ -81,7 +83,8 @@ export function calcDRE(
       case 'despesa_operacional':
         byType.despesa_operacional.push(tx); break
       case 'despesa_financeira':
-        byType.imposto.push(tx); break
+        // Despesas financeiras vão para resultado financeiro (linha separada), não para impostos
+        byType.resultado_financeiro.push(tx); break
       // investimento, nao_operacional → não entram no DRE
     }
   }
@@ -95,7 +98,13 @@ export function calcDRE(
   const despOp       = sumCents(byType.despesa_operacional.map(t => t.amount_cents))
   const lucroOp      = new Decimal(lucroBruto).minus(despOp).toNumber()
   const impostos     = sumCents(byType.imposto.map(t => t.amount_cents))
-  const lucroLiquido = new Decimal(lucroOp).minus(impostos).toNumber()
+  // Resultado financeiro: receitas não-op somam, despesas financeiras subtraem
+  const resultadoFinanceiro = byType.resultado_financeiro.reduce((acc, tx) => {
+    const v2 = tx.chart_account_v2_id ? v2AccountMap.get(tx.chart_account_v2_id) : undefined
+    const isIncome = v2 ? v2.account_type === 'receita_nao_op' : tx.type === 'receita'
+    return isIncome ? acc + tx.amount_cents : acc - tx.amount_cents
+  }, 0)
+  const lucroLiquido = new Decimal(lucroOp).plus(resultadoFinanceiro).minus(impostos).toNumber()
 
   const margemBruta   = calcPercent(lucroBruto, receitaLiquida)
   const margemLiquida = calcPercent(lucroLiquido, receitaLiquida)
@@ -170,7 +179,12 @@ export function calcDRE(
       percentOfRevenue: calcPercent(lucroOp, ref), isSubtotal: true,
     },
     {
-      code: '4', label: '(-) Despesas Financeiras', amountCents: impostos, sign: -1,
+      code: '4', label: '(+/-) Resultado Financeiro', amountCents: resultadoFinanceiro,
+      percentOfRevenue: calcPercent(resultadoFinanceiro, ref),
+      children: drillDown(byType.resultado_financeiro),
+    },
+    {
+      code: '5', label: '(-) Impostos sobre Lucro', amountCents: impostos, sign: -1,
       percentOfRevenue: calcPercent(impostos, ref),
       children: drillDown(byType.imposto),
     },
@@ -185,7 +199,9 @@ export function calcDRE(
     receitaBruta, deducoes, receitaLiquida,
     cmv, lucroBruto,
     despesasOperacionais: despOp, lucroOperacional: lucroOp,
-    impostos, despesasFinanceiras: impostos, lucroLiquido,
+    impostos, despesasFinanceiras: impostos,
+    resultadoFinanceiro,
+    lucroLiquido,
     margemBruta, margemLiquida,
     receitaPorCanal,
     lines,
